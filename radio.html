@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌍 简单收音机</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a2e;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .radio {
+      background: #16213e;
+      border-radius: 24px;
+      padding: 32px;
+      width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .display {
+      background: #0f3460;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .freq {
+      font-size: 42px;
+      font-weight: 700;
+      color: #e94560;
+      letter-spacing: 2px;
+    }
+
+    .station-name {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #475569;
+    }
+    .dot.live { background: #22c55e; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 22px;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { transform: scale(1.08); }
+    .btn:active { transform: scale(0.95); }
+
+    .btn-play {
+      background: #e94560;
+      box-shadow: 0 4px 20px rgba(233,69,96,0.4);
+    }
+    .btn-mute {
+      background: #1e293b;
+      font-size: 18px;
+    }
+
+    .volume-slider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .volume-slider span { font-size: 16px; }
+    input[type=range] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      background: #334155;
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #e94560;
+      cursor: pointer;
+    }
+
+    .stations {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .station {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .station:hover { background: #334155; }
+    .station.active { background: #e94560; }
+
+    .station-info { display: flex; flex-direction: column; }
+    .station-info .name { font-size: 14px; font-weight: 600; }
+    .station-info .desc { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .station-tag {
+      font-size: 10px;
+      background: rgba(255,255,255,0.15);
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="radio">
+    <div class="display">
+      <div class="freq" id="freq">FM 98.7</div>
+      <div class="station-name" id="stationName">选择电台收听</div>
+      <div class="status">
+        <div class="dot" id="dot"></div>
+        <span id="statusText">待机</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-play" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="btn btn-mute" id="muteBtn" onclick="toggleMute()">🔇</button>
+    </div>
+
+    <div class="volume-slider">
+      <span>🔈</span>
+      <input type="range" id="volume" min="0" max="100" value="80" oninput="setVolume(this.value)">
+      <span>🔊</span>
+    </div>
+
+    <div class="stations">
+      <div class="station active" onclick="playStation(0)">
+        <div class="station-info">
+          <div class="name">CNN Radio</div>
+          <div class="desc">美国有线电视新闻网广播</div>
+        </div>
+        <div class="station-tag">新闻</div>
+      </div>
+      <div class="station" onclick="playStation(1)">
+        <div class="station-info">
+          <div class="name">BBC World Service</div>
+          <div class="desc">英国广播公司国际广播</div>
+        </div>
+        <div class="station-tag">新闻</div>
+      </div>
+      <div class="station" onclick="playStation(2)">
+        <div class="station-info">
+          <div class="name">Radio Paradise</div>
+          <div class="desc">美国独立音乐电台</div>
+        </div>
+        <div class="station-tag">音乐</div>
+      </div>
+      <div class="station" onclick="playStation(3)">
+        <div class="station-info">
+          <div class="name">SomaFM Groove Salad</div>
+          <div class="desc">环境电子音乐</div>
+        </div>
+        <div class="station-tag">电子</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const stations = [
+      {
+        name: 'CNN Radio',
+        freq: 'FM 98.7',
+        url: 'https://tunein.streamguys1.com/cnn',
+        status: '新闻 · 美国'
+      },
+      {
+        name: 'BBC World Service',
+        freq: 'FM 101.3',
+        url: 'https://stream.live.vc.bbcmedia.co.uk/bbc_world_service',
+        status: '新闻 · 英国'
+      },
+      {
+        name: 'Radio Paradise',
+        freq: 'FM 107.9',
+        url: 'https://stream.radioparadise.com/aac-320',
+        status: '音乐 · 美国'
+      },
+      {
+        name: 'SomaFM Groove Salad',
+        freq: 'FM 103.5',
+        url: 'https://ice2.somafm.com/groovesalad-128-mp3',
+        status: '电子 · 美国'
+      }
+    ];
+
+    let audio = new Audio();
+    let current = -1;
+    let isPlaying = false;
+    let isMuted = false;
+
+    function playStation(index) {
+      current = index;
+      audio.src = stations[index].url;
+      audio.volume = document.getElementById('volume').value / 100;
+
+      document.getElementById('freq').textContent = stations[index].freq;
+      document.getElementById('stationName').textContent = stations[index].name + ' · ' + stations[index].status;
+      document.getElementById('statusText').textContent = '正在连接...';
+      document.getElementById('dot').className = 'dot';
+
+      document.querySelectorAll('.station').forEach((s, i) => {
+        s.className = 'station' + (i === index ? ' active' : '');
+      });
+
+      audio.play().then(() => {
+        isPlaying = true;
+        document.getElementById('playBtn').textContent = '⏸';
+        document.getElementById('statusText').textContent = '正在播放';
+        document.getElementById('dot').className = 'dot live';
+      }).catch(() => {
+        document.getElementById('statusText').textContent = '连接失败，请重试';
+      });
+    }
+
+    function togglePlay() {
+      if (current === -1) {
+        playStation(0);
+        return;
+      }
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        document.getElementById('playBtn').textContent = '▶';
+        document.getElementById('statusText').textContent = '已暂停';
+        document.getElementById('dot').className = 'dot';
+      } else {
+        audio.play();
+        isPlaying = true;
+        document.getElementById('playBtn').textContent = '⏸';
+        document.getElementById('statusText').textContent = '正在播放';
+        document.getElementById('dot').className = 'dot live';
+      }
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      audio.muted = isMuted;
+      document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
+    }
+
+    function setVolume(val) {
+      audio.volume = val / 100;
+    }
+  </script>
+</body>
+</html>
