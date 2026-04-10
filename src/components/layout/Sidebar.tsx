@@ -20,15 +20,8 @@ import {
   MessageSquare,
   ChevronRight,
   ChevronDown,
-  Home,
-  Users,
-  Check,
   Pencil,
-  PanelLeftClose,
-  PanelLeft,
-  MoreHorizontal,
   MessageCircle,
-  Laptop,
   FileText,
   FolderCog,
 } from 'lucide-react';
@@ -40,27 +33,37 @@ import { useAgentsStore } from '@/stores/agents';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { hostApiFetch } from '@/lib/host-api';
 import { useTranslation } from 'react-i18next';
-import logoPng from '@/assets/猫爪logo.png';
 
-// ── Types ──────────────────────────────────────────────────────
-type SessionBucketKey = 'today' | 'yesterday' | 'withinWeek' | 'older';
+// 预设头像列表 - 与档案室保持一致
+import avatar01 from '@/assets/avatars/avatar-01.png';
+import avatar02 from '@/assets/avatars/avatar-02.png';
+import avatar03 from '@/assets/avatars/avatar-03.png';
+import avatar04 from '@/assets/avatars/avatar-04.png';
+import avatar05 from '@/assets/avatars/avatar-05.png';
+import avatar06 from '@/assets/avatars/avatar-06.png';
+import avatar07 from '@/assets/avatars/avatar-07.png';
+import avatar08 from '@/assets/avatars/avatar-08.png';
 
-type NavPage = 'chat' | 'models' | 'agents' | 'channels' | 'skills' | 'cron' | 'settings' | 'logs' | 'config';
+const PRESET_AVATARS = [
+  { id: 'avatar-01', src: avatar01 },
+  { id: 'avatar-02', src: avatar02 },
+  { id: 'avatar-03', src: avatar03 },
+  { id: 'avatar-04', src: avatar04 },
+  { id: 'avatar-05', src: avatar05 },
+  { id: 'avatar-06', src: avatar06 },
+  { id: 'avatar-07', src: avatar07 },
+  { id: 'avatar-08', src: avatar08 },
+];
 
-// ── Helpers ────────────────────────────────────────────────────
-function getSessionBucket(activityMs: number, nowMs: number): SessionBucketKey {
-  if (!activityMs || activityMs <= 0) return 'older';
-  const now = new Date(nowMs);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
-  if (activityMs >= startOfToday) return 'today';
-  if (activityMs >= startOfYesterday) return 'yesterday';
-  const daysAgo = (startOfToday - activityMs) / (24 * 60 * 60 * 1000);
-  if (daysAgo <= 7) return 'withinWeek';
-  return 'older';
+// 获取预设头像 URL
+function getPresetAvatarSrc(avatarId?: string): string | null {
+  if (!avatarId) return null;
+  const preset = PRESET_AVATARS.find(a => a.id === avatarId);
+  return preset?.src || null;
 }
 
-const INITIAL_NOW_MS = Date.now();
+// ── Types ──────────────────────────────────────────────────────
+type NavPage = 'chat' | 'models' | 'agents' | 'channels' | 'skills' | 'cron' | 'settings' | 'logs' | 'config';
 
 function getAgentIdFromSessionKey(sessionKey: string): string {
   if (!sessionKey.startsWith('agent:')) return 'main';
@@ -87,7 +90,25 @@ function getAgentColor(name: string): string {
 }
 
 // ── AgentAvatar ────────────────────────────────────────────────
-function AgentAvatar({ name, size = 28 }: { name: string; size?: number }) {
+function AgentAvatar({ name, avatarId, size = 22 }: { name: string; avatarId?: string; size?: number }) {
+  const avatarSrc = getPresetAvatarSrc(avatarId);
+  
+  if (avatarSrc) {
+    return (
+      <img
+        src={avatarSrc}
+        alt={name}
+        className="rounded-full shrink-0"
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'cover',
+        }}
+      />
+    );
+  }
+  
+  // 回退到渐变色字母头像
   const initial = name ? name.charAt(0).toUpperCase() : 'A';
   const gradient = getAgentColor(name);
   return (
@@ -153,7 +174,6 @@ export function Sidebar() {
   const deleteSession = useChatStore((s) => s.deleteSession);
   const loadSessions = useChatStore((s) => s.loadSessions);
   const loadHistory = useChatStore((s) => s.loadHistory);
-  const currentAgentId = useChatStore((s) => s.currentAgentId);
 
   const gatewayStatus = useGatewayStore((s) => s.status);
   const isGatewayRunning = gatewayStatus.state === 'running';
@@ -162,7 +182,6 @@ export function Sidebar() {
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
 
   const [sessionToDelete, setSessionToDelete] = useState<{ key: string; label: string } | null>(null);
-  const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set(['main']));
   const [agentsListCollapsed, setAgentsListCollapsed] = useState(false);
@@ -205,11 +224,6 @@ export function Sidebar() {
     })();
     return () => { cancelled = true; };
   }, [isGatewayRunning, loadHistory, loadSessions]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNowMs(Date.now()), 60 * 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     void fetchAgents();
@@ -316,10 +330,10 @@ export function Sidebar() {
   // 所有 agent 项（含 main）
   // API 已返回 main，不要重复添加；只补一个 MClaw 名称的 main
   const allAgentItems = useMemo(() => {
-    const items: { id: string; name: string; isMain: boolean }[] = [];
+    const items: { id: string; name: string; isMain: boolean; avatarId?: string }[] = [];
     const hasMain = (agents ?? []).some((a) => a.id === 'main');
     if (!hasMain) {
-      items.push({ id: 'main', name: 'MClaw', isMain: true });
+      items.push({ id: 'main', name: 'MClaw', isMain: true, avatarId: 'avatar-01' });
     }
     for (const a of agents ?? []) {
       // main 用 MClaw 名称展示
@@ -327,24 +341,29 @@ export function Sidebar() {
         id: a.id,
         name: a.id === 'main' ? 'MClaw' : a.name,
         isMain: a.id === 'main',
+        avatarId: a.avatarId,
       });
     }
     return items;
   }, [agents]);
 
-  // 桶标签映射
-  const bucketLabelMap: Record<SessionBucketKey, string> = {
-    today: t('chat:historyBuckets.today'),
-    yesterday: t('chat:historyBuckets.yesterday'),
-    withinWeek: t('chat:historyBuckets.withinWeek'),
-    older: t('chat:historyBuckets.older'),
-  };
-
-  // 点击图标按钮时：如果完全收起则展开，否则直接导航
+  // 点击图标按钮时：会话按钮展开列表，其他按钮隐藏列表
   const handleIconNav = (path: string) => {
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
+    // 会话页面（'/' 或 '/chat'）需要展开列表，其他页面隐藏
+    const isChatPage = path === '/' || path === '/chat';
+    
+    if (isChatPage) {
+      // 会话页面 - 展开侧边栏
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+    } else {
+      // 其他页面 - 隐藏侧边栏
+      if (!sidebarCollapsed) {
+        setSidebarCollapsed(true);
+      }
     }
+    
     navigate(path);
   };
 
@@ -360,7 +379,9 @@ export function Sidebar() {
             background: 'var(--theme-sidebar-bg)',
             borderRight: iconsCollapsed ? 'none' : '1px solid var(--theme-border)',
             overflow: 'hidden',
-            transition: 'all 0.3s ease',
+            // 使用 GPU 加速的宽度动画
+            transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            willChange: 'width',
           }}
         >
           {/* 顶部占位 - 保持与右侧顶栏对齐 */}
@@ -375,10 +396,10 @@ export function Sidebar() {
             active={currentPage === 'chat'}
             onClick={() => handleIconNav('/')}
           />
-          {/* 工作室 */}
+          {/* 档案室 */}
           <LeftNavButton
-            icon={<Laptop className="h-[20px] w-[20px]" strokeWidth={1.8} />}
-            label="工作室"
+            icon={<Bot className="h-[20px] w-[20px]" strokeWidth={1.8} />}
+            label="Agents"
             active={location.pathname.startsWith('/studio')}
             onClick={() => handleIconNav('/studio')}
           />
@@ -409,12 +430,6 @@ export function Sidebar() {
             label={t('sidebar.cronTasks')}
             active={currentPage === 'cron'}
             onClick={() => handleIconNav('/cron')}
-          />
-          <LeftNavButton
-            icon={<Bot className="h-[20px] w-[20px]" strokeWidth={1.8} />}
-            label={t('sidebar.agents')}
-            active={currentPage === 'agents'}
-            onClick={() => handleIconNav('/agents')}
           />
 
           <div className="flex-1" />
@@ -452,11 +467,17 @@ export function Sidebar() {
         <aside
           data-testid="sidebar"
           className={cn(
-            'flex flex-col overflow-hidden transition-all duration-300',
+            'flex flex-col overflow-hidden',
             'bg-[var(--theme-sidebar-bg)]',
             sidebarCollapsed ? 'w-0' : 'w-[220px]',
           )}
-          style={{ borderRight: '1px solid var(--theme-border)' }}
+          style={{ 
+            borderRight: '1px solid var(--theme-border)',
+            // 使用 GPU 加速的宽度动画
+            transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
+            willChange: 'width',
+            opacity: sidebarCollapsed ? 0 : 1,
+          }}
         >
           {/* 搜索框 */}
           <div className="px-3 pt-3 pb-2 shrink-0">
@@ -566,15 +587,6 @@ export function Sidebar() {
                   const isExpanded = expandedAgents.has(item.id);
                   const agentSessions = sessionsByAgent.get(item.id) ?? [];
 
-                  // 分桶
-                  const bucketMap = new Map<SessionBucketKey, typeof agentSessions>();
-                  for (const s of agentSessions) {
-                    const bucket = getSessionBucket(sessionLastActivity[s.key] ?? 0, nowMs);
-                    if (!bucketMap.has(bucket)) bucketMap.set(bucket, []);
-                    bucketMap.get(bucket)!.push(s);
-                  }
-                  const orderedBuckets: SessionBucketKey[] = ['today', 'yesterday', 'withinWeek', 'older'];
-
                   return (
                     <div key={item.id} className="agent-group">
                       {/* Agent 行（可点击展开） */}
@@ -598,6 +610,9 @@ export function Sidebar() {
                         <span className="shrink-0" style={{ color: 'var(--theme-text-muted)' }}>
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </span>
+
+                        {/* Agent 头像 */}
+                        <AgentAvatar name={item.name} avatarId={item.avatarId} size={22} />
 
                         {/* Agent 名称长条形标签 */}
                         <AgentBadge name={item.name} />
@@ -655,36 +670,22 @@ export function Sidebar() {
                               </button>
                             </div>
                           ) : (
-                            orderedBuckets.map((bucketKey) => {
-                              const bucketSessions = bucketMap.get(bucketKey);
-                              if (!bucketSessions || bucketSessions.length === 0) return null;
-                              return (
-                                <div key={bucketKey}>
-                                  <div
-                                    className="text-[10px] font-medium px-2 py-1 uppercase tracking-wide"
-                                    style={{ color: 'var(--theme-text-muted)' }}
-                                  >
-                                    {bucketLabelMap[bucketKey]}
-                                  </div>
-                                  {bucketSessions.map((s) => (
-                                    <SessionItem
-                                      key={s.key}
-                                      sessionKey={s.key}
-                                      label={getSessionLabel(s.key, s.displayName, s.label)}
-                                      agentId={item.id}
-                                      agentName={item.name}
-                                      isActive={currentSessionKey === s.key}
-                                      onSelect={() => handleSelectSession(s.key, item.id)}
-                                      onDelete={() => setSessionToDelete({ key: s.key, label: getSessionLabel(s.key, s.displayName, s.label) })}
-                                      onRename={(newLabel) => renameSession(s.key, newLabel)}
-                                      compact
-                                      showSummary
-                                      unreadCount={sessionUnreadCounts[s.key] || 0}
-                                    />
-                                  ))}
-                                </div>
-                              );
-                            })
+                            agentSessions.map((s) => (
+                              <SessionItem
+                                key={s.key}
+                                sessionKey={s.key}
+                                label={getSessionLabel(s.key, s.displayName, s.label)}
+                                agentId={item.id}
+                                agentName={item.name}
+                                isActive={currentSessionKey === s.key}
+                                onSelect={() => handleSelectSession(s.key, item.id)}
+                                onDelete={() => setSessionToDelete({ key: s.key, label: getSessionLabel(s.key, s.displayName, s.label) })}
+                                onRename={(newLabel) => renameSession(s.key, newLabel)}
+                                compact
+                                showSummary
+                                unreadCount={sessionUnreadCounts[s.key] || 0}
+                              />
+                            ))
                           )}
                         </div>
                       )}
@@ -871,14 +872,14 @@ const LeftNavButton = memo(function LeftNavButton({
   icon, label, active, onClick,
 }: {
   icon: React.ReactNode;
-  label: string;
+  label: React.ReactNode;
   active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      title={label}
+      title={typeof label === 'string' ? label : undefined}
       className={cn(
         'flex flex-col items-center justify-center rounded-xl transition-all duration-150 gap-0.5 gpu-accelerated',
         active

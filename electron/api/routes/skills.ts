@@ -97,5 +97,39 @@ export async function handleSkillRoutes(
     return true;
   }
 
+  // SkillHub routes (Chinese mirror)
+  if (url.pathname === '/api/skillhub/search' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody<Record<string, unknown>>(req);
+      sendJson(res, 200, {
+        success: true,
+        results: await ctx.skillHubService.search(body),
+      });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/skillhub/install' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody<Record<string, unknown>>(req);
+      await ctx.skillHubService.install(body);
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/skillhub/list' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, { success: true, results: await ctx.skillHubService.listInstalled() });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
   return false;
 }

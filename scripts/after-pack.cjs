@@ -560,8 +560,23 @@ exports.default = async function afterPack(context) {
     .length;
 
   console.log(`[after-pack] Copying ${depCount} openclaw dependencies to ${dest} ...`);
-  cpSync(src, dest, { recursive: true });
+  // Use dereference:true to resolve symlinks into real files — pnpm uses absolute-path
+  // symlinks in the virtual store, and codesign --verify --deep rejects .app bundles
+  // that contain symlinks pointing outside the bundle.
+  cpSync(src, dest, { recursive: true, dereference: true });
   console.log('[after-pack] ✅ openclaw node_modules copied.');
+
+  // Remove any .DS_Store files immediately after copy — macOS codesign refuses
+  // to sign .app bundles that contain .DS_Store (resource fork detritus error).
+  if (platform === 'darwin') {
+    const { execSync } = require('child_process');
+    try {
+      execSync(`find ${JSON.stringify(resourcesDir)} -name ".DS_Store" -delete`, { stdio: 'pipe' });
+      console.log('[after-pack] 🧹 Removed .DS_Store files from resources (codesign guard).');
+    } catch (e) {
+      console.warn('[after-pack] ⚠️  Failed to remove .DS_Store files:', e.message);
+    }
+  }
 
   // Patch broken modules whose CJS transpiled output sets module.exports = undefined,
   // causing TypeError in Node.js 22+ ESM interop.

@@ -170,6 +170,11 @@ export async function resolveDefaultGatewayWsUrl(): Promise<string> {
   return `ws://127.0.0.1:${port}/ws`;
 }
 
+// Allow external callers to invalidate the cached port when gateway restarts
+export function invalidateGatewayPortCache(): void {
+  cachedGatewayPort = null;
+}
+
 class TransportUnsupportedError extends Error {
   transport: TransportKind;
 

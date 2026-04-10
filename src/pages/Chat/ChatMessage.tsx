@@ -5,7 +5,7 @@
  * 性能优化：使用 useMemo 缓存派生数据
  */
 import { useState, useCallback, useEffect, memo, useMemo } from 'react';
-import { Sparkles, Copy, Check, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Brain } from 'lucide-react';
+import { Copy, Check, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
@@ -40,18 +40,6 @@ function imageSrc(img: ExtractedImage): string | null {
   return null;
 }
 
-// 使用 shallow comparison 来精细化 memo
-function arePropsEqual(prev: ChatMessageProps, next: ChatMessageProps): boolean {
-  return (
-    prev.message.id === next.message.id &&
-    prev.message.timestamp === next.message.timestamp &&
-    prev.showThinking === next.showThinking &&
-    prev.suppressToolCards === next.suppressToolCards &&
-    prev.suppressProcessAttachments === next.suppressProcessAttachments &&
-    prev.isStreaming === next.isStreaming &&
-    prev.streamingTools?.length === next.streamingTools?.length
-  );
-}
 
 export const ChatMessage = memo(function ChatMessage({
   message,
@@ -182,7 +170,6 @@ export const ChatMessage = memo(function ChatMessage({
               text={text}
               isUser={isUser}
               isStreaming={isStreaming}
-              thinking={visibleThinking}
             />
           </div>
         )}
@@ -265,57 +252,6 @@ export const ChatMessage = memo(function ChatMessage({
   );
 });
 
-function formatDuration(durationMs?: number): string | null {
-  if (!durationMs || !Number.isFinite(durationMs)) return null;
-  if (durationMs < 1000) return `${Math.round(durationMs)}ms`;
-  return `${(durationMs / 1000).toFixed(1)}s`;
-}
-
-// Memo化的工具状态栏
-const ToolStatusBar = memo(function ToolStatusBar({
-  tools,
-}: {
-  tools: Array<{
-    id?: string;
-    toolCallId?: string;
-    name: string;
-    status: 'running' | 'completed' | 'error';
-    durationMs?: number;
-    summary?: string;
-  }>;
-}) {
-  return (
-    <div className="w-full space-y-1">
-      {tools.map((tool) => {
-        const duration = formatDuration(tool.durationMs);
-        const isRunning = tool.status === 'running';
-        const isError = tool.status === 'error';
-        return (
-          <div
-            key={tool.toolCallId || tool.id || tool.name}
-            className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs',
-              isRunning && 'border-primary/30 bg-primary/5 text-foreground',
-              !isRunning && !isError && 'border-border/50 bg-muted/20 text-muted-foreground',
-              isError && 'border-destructive/30 bg-destructive/5 text-destructive',
-            )}
-          >
-            {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />}
-            {!isRunning && !isError && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
-            {isError && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
-            <Wrench className="h-3 w-3 shrink-0 opacity-60" />
-            <span className="font-mono text-[12px] font-medium">{tool.name}</span>
-            {duration && <span className="text-[11px] opacity-60">{tool.summary ? `(${duration})` : duration}</span>}
-            {tool.summary && (
-              <span className="truncate text-[11px] opacity-70">{tool.summary}</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-});
-
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
 const AssistantHoverBar = memo(function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
@@ -344,108 +280,16 @@ const AssistantHoverBar = memo(function AssistantHoverBar({ text, timestamp }: {
   );
 });
 
-// ── Call Bubble ─────────────────────────────────────────────
-// 调用记录气泡 - 流式显示 AI 的详细调用过程
-// 带真正的打字机效果
-// Memo化以优化性能
-
-const CallBubble = memo(function CallBubble({ thinking, isStreaming }: { thinking: string | null; isStreaming: boolean }) {
-  const [expanded, setExpanded] = useState(true);
-  // 打字机效果状态
-  const [displayedLength, setDisplayedLength] = useState(0);
-  
-  // 打字机效果：当有新内容时，逐步增加显示的字符数
-  useEffect(() => {
-    if (!thinking) {
-      setDisplayedLength(0);
-      return;
-    }
-    
-    if (!isStreaming) {
-      // 非流式模式，直接显示全部
-      setDisplayedLength(thinking.length);
-      return;
-    }
-    
-    // 流式模式，逐步显示
-    const targetLength = thinking.length;
-    if (targetLength <= displayedLength) return;
-    
-    // 每次增加几个字符，模拟打字效果
-    const step = Math.max(1, Math.ceil(targetLength / 30)); // 大约30帧完成
-    const interval = setInterval(() => {
-      setDisplayedLength(prev => {
-        const next = prev + step;
-        if (next >= targetLength) {
-          clearInterval(interval);
-          return targetLength;
-        }
-        return next;
-      });
-    }, 50); // 50ms 更新一次
-    
-    return () => clearInterval(interval);
-  }, [thinking, isStreaming]);
-  
-  if (!thinking && !isStreaming) return null;
-  
-  // 根据打字机状态获取显示的文本
-  const displayText = isStreaming 
-    ? (thinking?.slice(0, displayedLength) || '调用中...')
-    : (thinking || '');
-  
-  return (
-    <div className="mb-2">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className={cn(
-          "w-full text-left rounded-lg px-3 py-2 transition-all",
-          isStreaming 
-            ? "bg-blue-50/60 dark:bg-blue-900/20"
-            : "bg-green-50/60 dark:bg-green-900/15"
-        )}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          <Wrench className={cn(
-            "h-3.5 w-3.5 shrink-0",
-            isStreaming ? "text-blue-500 animate-pulse" : "text-green-500"
-          )} />
-          <span className={cn(
-            "text-[11px] font-medium",
-            isStreaming ? "text-blue-600 dark:text-blue-400" : "text-green-600 dark:text-green-400"
-          )}>
-            {isStreaming ? '执行中...' : '调用记录'}
-          </span>
-          <span className="text-[10px] text-gray-400 ml-auto">
-            {expanded ? '收起' : '展开'}
-          </span>
-        </div>
-        
-        {expanded && (
-          <p className="text-[12px] text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-            {displayText}
-            {isStreaming && (
-              <span className="inline-block w-0.5 h-3 bg-blue-500 animate-pulse ml-0.5" />
-            )}
-          </p>
-        )}
-      </button>
-    </div>
-  );
-});
-
 // ── Message Bubble ──────────────────────────────────────────────
 
 const MessageBubble = memo(function MessageBubble({
   text,
   isUser,
   isStreaming,
-  thinking,
 }: {
   text: string;
   isUser: boolean;
   isStreaming: boolean;
-  thinking?: string | null;
 }) {
   return (
     <div

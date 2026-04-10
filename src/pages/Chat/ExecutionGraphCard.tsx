@@ -8,19 +8,9 @@ interface ExecutionGraphCardProps {
   sessionLabel: string;
   steps: TaskStep[];
   active: boolean;
+  compact?: boolean;
   onJumpToTrigger?: () => void;
   onJumpToReply?: () => void;
-}
-
-// 精细化 memo 比较
-function arePropsEqual(prev: ExecutionGraphCardProps, next: ExecutionGraphCardProps): boolean {
-  return (
-    prev.agentLabel === next.agentLabel &&
-    prev.sessionLabel === next.sessionLabel &&
-    prev.active === next.active &&
-    prev.steps.length === next.steps.length &&
-    prev.steps.every((step, i) => step.status === next.steps[i].status && step.label === next.steps[i].label)
-  );
 }
 
 function GraphStatusIcon({ status }: { status: TaskStep['status'] }) {
@@ -32,7 +22,7 @@ function GraphStatusIcon({ status }: { status: TaskStep['status'] }) {
 
 export const ExecutionGraphCard = memo(function ExecutionGraphCard({
   agentLabel,
-  sessionLabel,
+  sessionLabel: _sessionLabel,
   steps,
   active,
   onJumpToTrigger,
@@ -113,7 +103,6 @@ export const ExecutionGraphCard = memo(function ExecutionGraphCard({
               step.status === 'completed' && "text-gray-600",
               step.status === 'running' && "text-blue-600",
               step.status === 'error' && "text-red-600",
-              step.status === 'pending' && "text-gray-500",
             )}>
               {step.label}
             </span>
@@ -151,4 +140,4 @@ export const ExecutionGraphCard = memo(function ExecutionGraphCard({
       )}
     </div>
   );
-}, arePropsEqual);
+}, undefined);

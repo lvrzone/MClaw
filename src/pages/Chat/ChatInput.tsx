@@ -7,7 +7,7 @@
  * are sent with the message (no base64 over WebSocket).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { SendHorizontal, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, AtSign, ChevronDown, Sparkles, Zap, Brain, Target, Image, Video, Code, Presentation, Wand2, Mic, MicOff } from 'lucide-react';
+import { SendHorizontal, Square, X, Paperclip, FileText, Film, Music, FileArchive, File, Loader2, AtSign, ChevronDown, Sparkles, Zap, Brain, Target, Image, Video, Code, Presentation, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { hostApiFetch } from '@/lib/host-api';
@@ -15,7 +15,6 @@ import { invokeIpc } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { useAgentsStore } from '@/stores/agents';
 import { useChatStore } from '@/stores/chat';
-import { useProviderStore } from '@/stores/providers';
 import type { AgentSummary } from '@/types/agent';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -94,7 +93,6 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [targetAgentId, setTargetAgentId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [isListening, setIsListening] = useState(false);
   // 点击快捷回复后自动清除选项
@@ -107,7 +105,8 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const listenTextRef = useRef('');
   const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
@@ -417,7 +416,6 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
   }, []);
 
   const allReady = attachments.length === 0 || attachments.every(a => a.status === 'ready');
-  const hasFailedAttachments = attachments.some((a) => a.status === 'error');
   const canSend = (input.trim() || attachments.length > 0) && allReady && !disabled && !sending;
   const canStop = sending && !disabled && !!onStop;
 
@@ -437,7 +435,6 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     }
     setInput('');
     setAttachments([]);
-    setSelectedSkill(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -450,22 +447,6 @@ export function ChatInput({ onSend, onStop, disabled = false, sending = false, i
     if (!canStop) return;
     onStop?.();
   }, [canStop, onStop]);
-
-  // 处理技能选择
-  const handleSkillSelect = useCallback((skillId: string) => {
-    const skillPrefixes: Record<string, string> = {
-      'code': '/skill code',
-      'writing': '/skill writing',
-      'analysis': '/skill analysis',
-      'research': '/skill research',
-      'creative': '/skill creative',
-    };
-    const prefix = skillPrefixes[skillId] || `/skill ${skillId}`;
-    setSelectedSkill(skillId);
-    // 将技能前缀添加到输入框
-    setInput(prev => prev ? `${prefix} ${prev}` : prefix);
-    textareaRef.current?.focus();
-  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

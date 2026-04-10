@@ -8,7 +8,41 @@ function isMainProcessExternal(id: string): boolean {
   if (!id || id.startsWith('\0')) return false;
   if (id.startsWith('.') || id.startsWith('/') || /^[A-Za-z]:[\\/]/.test(id)) return false;
   if (id.startsWith('@/') || id.startsWith('@electron/')) return false;
-  return true;
+  // Bundle all dependencies into the main process to avoid runtime ESM/CJS issues
+  // and missing node_modules in the packaged app. Only exclude built-in Node/Electron modules.
+  // Note: 'ws' must be external because it contains native binary dependencies (bufferutil, utf-8-validate)
+  // that cannot be bundled correctly by rollup.
+  const builtInModules = [
+    'electron',
+    'node:',
+    'child_process',
+    'crypto',
+    'events',
+    'fs',
+    'fs/promises',
+    'http',
+    'https',
+    'net',
+    'os',
+    'path',
+    'stream',
+    'url',
+    'util',
+    'zlib',
+    'async_hooks',
+    'node:module',
+    'node:path',
+    'node:fs',
+    'node:fs/promises',
+    'node:os',
+    'node:crypto',
+    'node:child_process',
+    'node:http',
+    'node:zlib',
+    'ws',
+  ];
+  if (builtInModules.some(m => id === m || id.startsWith(m))) return true;
+  return false;
 }
 
 // https://vitejs.dev/config/

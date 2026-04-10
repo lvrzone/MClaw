@@ -2,7 +2,7 @@
  * Chat Page - iOS 26 简约玻璃态风格
  * 性能优化版本：使用 useMemo 缓存派生数据，减少不必要的重新渲染
  */
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { AlertCircle, Loader2, ChevronDown, ChevronRight, Brain, Sparkles, RotateCw, Zap, Search, Book, Pencil, Wrench, Calculator, CheckCircle, XCircle, PanelLeftClose } from 'lucide-react';
 import { useChatStore, type RawMessage } from '@/stores/chat';
 import { useGatewayStore } from '@/stores/gateway';
@@ -13,17 +13,17 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ExecutionGraphCard } from './ExecutionGraphCard';
+import { TaskPlanPanel, extractTaskGoal } from './TaskPlanPanel';
 import { ChatToolbar } from './ChatToolbar';
 import { extractImages, extractText, extractThinking, extractToolUse } from './message-utils';
 import { deriveTaskSteps, parseSubagentCompletionInfo } from './task-visualization';
-import { useTranslation } from 'react-i18next';
+import { enhanceTaskSteps } from './task-plan-parser';
 import { cn } from '@/lib/utils';
 import { useStickToBottomInstant } from '@/hooks/use-stick-to-bottom-instant';
 import { useMinLoading } from '@/hooks/use-min-loading';
 import { Button } from '@/components/ui/button';
 
 export function Chat() {
-  const { t } = useTranslation('chat');
   const gatewayStatus = useGatewayStore((s) => s.status);
   const restartGateway = useGatewayStore((s) => s.restart);
   const isGatewayRunning = gatewayStatus.state === 'running';
@@ -47,15 +47,15 @@ export function Chat() {
   const agents = useAgentsStore((s) => s.agents);
 
   const cleanupEmptySession = useChatStore((s) => s.cleanupEmptySession);
+  void cleanupEmptySession; // retained for future use
   const [childTranscripts, setChildTranscripts] = useState<Record<string, RawMessage[]>>({});
   const [streamingTimestamp, setStreamingTimestamp] = useState<number>(0);
   const [tasksPanelCollapsed, setTasksPanelCollapsed] = useState(true);
   
-  // 保存已完成调用的工具记录，用于在调用完成后保留图标
   const [completedToolsHistory, setCompletedToolsHistory] = useState<Array<{
     id: string;
     name: string;
-    status: 'completed' | 'error';
+    status: 'completed' | 'error' | 'running';
     durationMs?: number;
     summary?: string;
   }>>([]);
@@ -124,11 +124,68 @@ export function Chat() {
   }, []);
   
   const minLoading = useMinLoading(loading && messages.length > 0);
-  const { contentRef, scrollRef } = useStickToBottomInstant(currentSessionKey);
+  
+  // 使用 useMemo 缓存流式消息的派生数据
+  const streamData = useMemo(() => {
+    const streamMsg = streamingMessage && typeof streamingMessage === 'object'
+      ? streamingMessage as unknown as { role?: string; content?: unknown; timestamp?: number }
+      : null;
+    const streamText = streamMsg ? extractText(streamMsg) : (typeof streamingMessage === 'string' ? streamingMessage : '');
+    const hasStreamText = streamText.trim().length > 0;
+    const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
+    const hasStreamThinking = !!streamThinking && streamThinking.trim().length > 0;
+    const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
+    const hasStreamTools = streamTools.length > 0;
+    const streamImages = streamMsg ? extractImages(streamMsg) : [];
+    const hasStreamImages = streamImages.length > 0;
+    const hasStreamToolStatus = streamingTools.length > 0;
+    
+    // 检查流式消息是否已经在 messages 中存在（避免重复渲染）
+    const streamMsgId = streamMsg && (streamMsg as Record<string, unknown>).id as string | undefined;
+    const isStreamMsgAlreadyInList = streamMsgId && messages.some(msg => msg.id === streamMsgId);
+    
+    // 是否有任何流式内容
+    const hasAnyStreamContent = hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus;
+    
+    // 当发送结束时，确保立即停止渲染流式消息
+    const shouldRenderStreaming = sending && !isStreamMsgAlreadyInList && hasAnyStreamContent;
+    
+    return {
+      streamMsg,
+      streamText,
+      hasStreamText,
+      streamThinking,
+      hasStreamThinking,
+      streamTools,
+      hasStreamTools,
+      streamImages,
+      hasStreamImages,
+      hasStreamToolStatus,
+      hasAnyStreamContent,
+      shouldRenderStreaming,
+    };
+  }, [streamingMessage, streamingTools, messages, sending]);
+  
+  const { streamMsg, streamText, hasStreamText, streamThinking, hasStreamThinking, hasStreamToolStatus, hasAnyStreamContent, shouldRenderStreaming } = streamData;
+  
+  const { contentRef, scrollRef, scrollToBottom } = useStickToBottomInstant(currentSessionKey);
 
+  // 自动滚动到底部 - 当有新消息或流式内容时
   useEffect(() => {
-    return () => cleanupEmptySession();
-  }, [cleanupEmptySession]);
+    // 当有新的完成消息、流式内容、工具调用时，自动滚动
+    if (messages.length > 0 || sending || streamingTools.length > 0 || hasAnyStreamContent) {
+      // 使用 requestAnimationFrame 确保 DOM 已更新
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+  }, [
+    messages.length,
+    sending,
+    streamingTools.length,
+    hasStreamText,
+    hasStreamThinking,
+  ]);
 
   useEffect(() => {
     void fetchAgents();
@@ -177,50 +234,6 @@ export function Chat() {
     }
   }, [sending, streamingTimestamp]);
 
-  // 使用 useMemo 缓存流式消息的派生数据
-  const streamData = useMemo(() => {
-    const streamMsg = streamingMessage && typeof streamingMessage === 'object'
-      ? streamingMessage as unknown as { role?: string; content?: unknown; timestamp?: number }
-      : null;
-    const streamText = streamMsg ? extractText(streamMsg) : (typeof streamingMessage === 'string' ? streamingMessage : '');
-    const hasStreamText = streamText.trim().length > 0;
-    const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
-    const hasStreamThinking = !!streamThinking && streamThinking.trim().length > 0;
-    const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
-    const hasStreamTools = streamTools.length > 0;
-    const streamImages = streamMsg ? extractImages(streamMsg) : [];
-    const hasStreamImages = streamImages.length > 0;
-    const hasStreamToolStatus = streamingTools.length > 0;
-    
-    // 检查流式消息是否已经在 messages 中存在（避免重复渲染）
-    const streamMsgId = streamMsg && (streamMsg as Record<string, unknown>).id as string | undefined;
-    const isStreamMsgAlreadyInList = streamMsgId && messages.some(msg => msg.id === streamMsgId);
-    
-    // 是否有任何流式内容
-    const hasAnyStreamContent = hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus;
-    
-    // 当发送结束时，确保立即停止渲染流式消息
-    // 只有当正在发送中、消息尚未添加到列表、且有实际内容时才渲染
-    const shouldRenderStreaming = sending && !isStreamMsgAlreadyInList && hasAnyStreamContent;
-    
-    return {
-      streamMsg,
-      streamText,
-      hasStreamText,
-      streamThinking,
-      hasStreamThinking,
-      streamTools,
-      hasStreamTools,
-      streamImages,
-      hasStreamImages,
-      hasStreamToolStatus,
-      hasAnyStreamContent,
-      shouldRenderStreaming,
-    };
-  }, [streamingMessage, streamingTools, messages, sending]);
-  
-  const { streamMsg, streamText, hasStreamText, hasStreamThinking, hasStreamToolStatus, hasAnyStreamContent, shouldRenderStreaming } = streamData;
-
   // 自动展开调用面板当有执行数据时
   useEffect(() => {
     if ((sending || hasStreamThinking || hasStreamToolStatus) && tasksPanelCollapsed) {
@@ -230,41 +243,44 @@ export function Chat() {
 
   // 监听发送状态变化，保存已完成的工具调用
   useEffect(() => {
-    if (sending) return; // 还在发送中，不处理
-    
-    // 当发送结束时，如果有完成的工具，保存到历史记录
+    // 实时保存已完成和运行中的工具调用（不管 sending 状态）
     if (streamingTools.length > 0) {
-      const completedTools = streamingTools
-        .filter(t => t.status === 'completed' || t.status === 'error')
+      const processedTools = streamingTools
+        .filter(t => t.status === 'completed' || t.status === 'error' || t.status === 'running')
         .map(t => ({
-          id: t.toolCallId || t.id || t.name,
+          id: t.toolCallId || t.id || `${t.name}-${Date.now()}`,
           name: t.name,
           status: t.status,
           durationMs: t.durationMs,
           summary: t.summary,
         }));
       
-      if (completedTools.length > 0) {
+      if (processedTools.length > 0) {
         setCompletedToolsHistory(prev => {
           // 避免重复添加
           const existingIds = new Set(prev.map(t => t.id));
-          const newTools = completedTools.filter(t => !existingIds.has(t.id));
-          return [...prev, ...newTools];
+          const newTools = processedTools.filter(t => !existingIds.has(t.id));
+          // 更新已存在的工具状态
+          const updated = prev.map(t => {
+            const updated = processedTools.find(p => p.name === t.name && p.status !== 'running');
+            return updated ? { ...t, ...updated } : t;
+          });
+          return [...updated, ...newTools.filter(t => !existingIds.has(t.id))];
         });
       }
     }
     
-    // 思考或工具调用结束后，收起调用面板
-    // 延迟 500ms 收起，让用户看到最后的状态
-    const timer = setTimeout(() => {
-      setTasksPanelCollapsed(true);
-    }, 500);
-    
-    return () => clearTimeout(timer);
+    // 当发送结束时，收起调用面板
+    if (!sending) {
+      const timer = setTimeout(() => {
+        setTasksPanelCollapsed(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
   }, [sending, streamingTools]);
 
   // 监听消息变化，当有新的用户消息时清除工具历史（新的对话开始）
-  const lastMsgIdRef = React.useRef<string | undefined>();
+  const lastMsgIdRef = React.useRef<string | undefined>(undefined);
   useEffect(() => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg && lastMsg.role === 'user' && lastMsg.id !== lastMsgIdRef.current) {
@@ -279,7 +295,7 @@ export function Chat() {
   const isEmpty = messages.length === 0 && !sending;
   
   // 使用 useMemo 缓存复杂的派生数据计算
-  const { subagentCompletionInfos, nextUserMessageIndexes, userRunCards } = useMemo(() => {
+  const userRunCards = useMemo(() => {
     const subagentCompletionInfos = messages.map((message) => parseSubagentCompletionInfo(message));
     const nextUserMessageIndexes = new Array<number>(messages.length).fill(-1);
     let nextUserMessageIndex = -1;
@@ -290,7 +306,7 @@ export function Chat() {
       }
     }
 
-    const userRunCards = messages.flatMap((message, idx) => {
+    return messages.flatMap((message, idx) => {
     if (message.role !== 'user' || subagentCompletionInfos[idx]) return [];
 
     const nextUserIndex = nextUserMessageIndexes[idx];
@@ -361,7 +377,6 @@ export function Chat() {
     }];
     });
     
-    return { subagentCompletionInfos, nextUserMessageIndexes, userRunCards };
   }, [
     messages, 
     currentAgentId, 
@@ -444,6 +459,21 @@ export function Chat() {
               <WelcomeScreen />
             ) : (
               <>
+                {/* 任务计划面板 - 显示任务目标和执行步骤 */}
+                {((sending && (streamingTools.length > 0 || hasStreamThinking)) || completedToolsHistory.length > 0) && (
+                  <TaskPlanPanel
+                    userGoal={extractTaskGoal(messages)}
+                    steps={enhanceTaskSteps(
+                      streamingTools.map(t => ({ name: t.name, input: t.summary ? { summary: t.summary } : undefined })),
+                      completedToolsHistory,
+                      streamText
+                    )}
+                    isStreaming={sending && streamingTools.length > 0}
+                    compact
+                  />
+                )}
+                
+                {/* 消息列表 */}
                 {messages.map((msg, idx) => {
                   const suppressToolCards = suppressToolCardsMap.get(idx) || false;
                   const cards = graphCardsMap.get(idx) || [];
@@ -485,7 +515,10 @@ export function Chat() {
                     </div>
                   );
                 })}
-
+                
+                {/* 消息列表结束 */}
+                
+                {/* 流式消息 */}
                 {shouldRenderStreaming && (
                   <ChatMessage
                     message={(streamMsg
@@ -604,7 +637,7 @@ export function Chat() {
 
               {/* 完全没有调用数据时 - 不显示任何内容 */}
               {!sending && !hasStreamToolStatus && !hasStreamThinking && !lastThinking && completedToolsHistory.length === 0 && (
-                <div className="h-4" /> // 保留空白区域
+                <div className="h-4" />
               )}
 
               {/* 有流式工具数据时 - 展示每个工具的执行状态 */}
@@ -664,10 +697,32 @@ export function Chat() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
 
-                  {/* 无思考内容时显示当前流式回复文本 */}
+              {/* 无工具数据但有思考或文本 - 统一容器 */}
+              {sending && !hasStreamToolStatus && (hasStreamThinking || hasStreamText) && (
+                <div className="space-y-1.5">
+                  {/* 思考内容 - 打字机效果 */}
+                  {hasStreamThinking && (
+                    <div 
+                      className="px-2.5 py-1.5 rounded-md"
+                      style={{ 
+                        background: 'rgba(34,197,94,0.05)',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <CallActionIndicator thinking={streamThinking} isStreaming={true} />
+                      <div className="text-[10px] leading-relaxed mt-1 overflow-hidden" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="stream-thinking-text">{streamThinking}</span>
+                        <span className="inline-block w-0.5 h-2.5 bg-green-500 animate-pulse ml-0.5 vertical-middle" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 无思考内容但有流式文本 - 显示模型正在生成的回复 */}
                   {!hasStreamThinking && hasStreamText && (
-                    <div className="px-2.5 py-1.5 rounded-md mt-1" style={{ background: 'rgba(34,197,94,0.05)', borderRadius: '6px' }}>
+                    <div className="px-2.5 py-1.5 rounded-md" style={{ background: 'rgba(34,197,94,0.05)', borderRadius: '6px' }}>
                       <CallActionIndicator thinking={streamText} isStreaming={true} />
                       <p className="text-[10px] leading-relaxed mt-1 max-h-24 overflow-y-auto" style={{ color: 'var(--text-secondary)' }}>
                         {streamText}
@@ -678,36 +733,8 @@ export function Chat() {
                 </div>
               )}
 
-              {/* 有思考内容但没有工具数据 - 打字机效果 */}
-              {sending && !hasStreamToolStatus && hasStreamThinking && (
-                <div 
-                  className="px-2.5 py-1.5 rounded-md"
-                  style={{ 
-                    background: 'rgba(34,197,94,0.05)',
-                    borderRadius: '6px',
-                  }}
-                >
-                  <CallActionIndicator thinking={streamThinking} isStreaming={true} />
-                  <div className="text-[10px] leading-relaxed mt-1 overflow-hidden" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="stream-thinking-text">{streamThinking}</span>
-                    <span className="inline-block w-0.5 h-2.5 bg-green-500 animate-pulse ml-0.5 vertical-middle" />
-                  </div>
-                </div>
-              )}
-
-              {/* 无思考内容但有流式文本 - 显示模型正在生成的回复 */}
-              {sending && !hasStreamToolStatus && !hasStreamThinking && hasStreamText && (
-                <div className="px-2.5 py-1.5 rounded-md" style={{ background: 'rgba(34,197,94,0.05)', borderRadius: '6px' }}>
-                  <CallActionIndicator thinking={streamText} isStreaming={true} />
-                  <p className="text-[10px] leading-relaxed mt-1 max-h-24 overflow-y-auto" style={{ color: 'var(--text-secondary)' }}>
-                    {streamText}
-                    <span className="inline-block w-1 h-2.5 bg-green-500 animate-pulse ml-0.5" />
-                  </p>
-                </div>
-              )}
-
-              {/* 正在等待流式响应 */}
-              {sending && !hasStreamToolStatus && !hasStreamThinking && (
+              {/* 正在等待流式响应（无工具、无思考、无文本） */}
+              {sending && !hasStreamToolStatus && !hasStreamThinking && !hasStreamText && (
                 <div className="flex items-center gap-2.5 px-2.5 py-2">
                   <CallActionIndicator thinking={null} isStreaming={true} />
                 </div>
@@ -793,11 +820,12 @@ function WelcomeScreen() {
   const agentName = currentAgent?.name || 'MClaw';
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in-up">
-      <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in-up relative">
+      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b from-transparent to-[var(--background)] pointer-events-none" />
+      <h1 className="text-[18px] font-semibold tracking-tight mb-1" style={{ color: 'var(--text-primary)' }}>
         Hi，我是<span style={{ color: 'var(--accent-blue)' }}> {agentName}+</span>
       </h1>
-      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
         有什么我可以帮你做的？
       </p>
     </div>

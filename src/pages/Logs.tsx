@@ -3,7 +3,6 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  FileJson,
   Database,
   MessageSquare,
   Bot,
@@ -20,7 +19,6 @@ import {
   Info,
   XCircle,
   Terminal,
-  FileText,
   Eye,
   FolderOpen,
 } from 'lucide-react';
@@ -55,12 +53,17 @@ export function Logs() {
   const [selectedGatewayFile, setSelectedGatewayFile] = useState<string>('');
   const [gatewayLoading, setGatewayLoading] = useState(false);
 
-  // 引用各 store
-  const chatStore = useChatStore();
-  const settingsStore = useSettingsStore();
-  const gatewayStore = useGatewayStore();
-  const agentsStore = useAgentsStore();
-  const providersStore = useProviderStore();
+  // 引用各 store 数据 (使用 selector 方式避免类型问题)
+  const chatSessions = useChatStore((s) => s.sessions);
+  const chatMessages = useChatStore((s) => s.messages);
+  const chatCurrentSessionKey = useChatStore((s) => s.currentSessionKey);
+  const chatCurrentAgentId = useChatStore((s) => s.currentAgentId);
+  const settingsTheme = useSettingsStore((s) => s.theme);
+  const settingsLanguage = useSettingsStore((s) => s.language);
+  const settingsSetupComplete = useSettingsStore((s) => s.setupComplete);
+  const gatewayStatus = useGatewayStore((s) => s.status);
+  const agentsList = useAgentsStore((s) => s.agents);
+  const providerAccounts = useProviderStore((s) => s.accounts);
 
   // 读取 Gateway 日志文件
   const fetchGatewayLogs = useCallback(async () => {
@@ -90,23 +93,6 @@ export function Logs() {
       setGatewayLoading(false);
     }
   }, [selectedGatewayFile]);
-
-  // 读取指定 Gateway 日志文件
-  const fetchGatewayFileContent = useCallback(async (filePath: string) => {
-    setGatewayLoading(true);
-    try {
-      // 通过 IPC 读取文件
-      const content = await window.electron.ipcRenderer.invoke('log:readFile', 500);
-      if (content) {
-        const lines = content.trim().split('\n');
-        setGatewayLogs(lines.filter(Boolean));
-      }
-    } catch (error) {
-      console.error('Failed to fetch gateway file:', error);
-    } finally {
-      setGatewayLoading(false);
-    }
-  }, []);
 
   // 初始化和刷新
   useEffect(() => {
@@ -156,19 +142,19 @@ export function Logs() {
     const data = {
       timestamp: new Date().toISOString(),
       chat: {
-        sessions: chatStore.sessions,
-        messages: chatStore.messages,
-        currentSessionKey: chatStore.currentSessionKey,
-        currentAgentId: chatStore.currentAgentId,
+        sessions: chatSessions,
+        messages: chatMessages,
+        currentSessionKey: chatCurrentSessionKey,
+        currentAgentId: chatCurrentAgentId,
       },
-      gateway: gatewayStore.status,
+      gateway: gatewayStatus,
       settings: {
-        theme: settingsStore.theme,
-        language: settingsStore.language,
-        setupComplete: settingsStore.setupComplete,
+        theme: settingsTheme,
+        language: settingsLanguage,
+        setupComplete: settingsSetupComplete,
       },
-      agents: agentsStore.agents,
-      providers: providersStore.providers,
+      agents: agentsList,
+      providers: providerAccounts,
     };
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
   };
@@ -178,19 +164,19 @@ export function Logs() {
     const data = {
       timestamp: new Date().toISOString(),
       chat: {
-        sessions: chatStore.sessions,
-        messages: chatStore.messages,
-        currentSessionKey: chatStore.currentSessionKey,
-        currentAgentId: chatStore.currentAgentId,
+        sessions: chatSessions,
+        messages: chatMessages,
+        currentSessionKey: chatCurrentSessionKey,
+        currentAgentId: chatCurrentAgentId,
       },
-      gateway: gatewayStore.status,
+      gateway: gatewayStatus,
       settings: {
-        theme: settingsStore.theme,
-        language: settingsStore.language,
-        setupComplete: settingsStore.setupComplete,
+        theme: settingsTheme,
+        language: settingsLanguage,
+        setupComplete: settingsSetupComplete,
       },
-      agents: agentsStore.agents,
-      providers: providersStore.providers,
+      agents: agentsList,
+      providers: providerAccounts,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -213,12 +199,13 @@ export function Logs() {
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--theme-bg-root)' }}>
       {/* 头部 */}
-      <div className="shrink-0 px-4 py-3 border-b" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-sidebar-bg)' }}>
+      <div className="shrink-0 px-4 py-3 border-b relative" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-sidebar-bg)' }}>
+        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-b from-transparent to-[var(--theme-sidebar-bg)] pointer-events-none" />
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Terminal className="h-5 w-5" style={{ color: 'var(--theme-accent-blue)' }} />
-              <h1 className="text-[16px] font-semibold" style={{ color: 'var(--theme-text-primary)' }}>日志与数据</h1>
+              <h1 className="text-[18px] font-semibold tracking-tight" style={{ color: 'var(--theme-text-primary)' }}>日志与数据</h1>
             </div>
             {/* Tabs */}
             <div className="flex items-center gap-1 ml-4">
@@ -325,11 +312,6 @@ export function Logs() {
         {activeTab === 'app' ? (
           /* ===== 应用状态视图 ===== */
           <AppStatusView
-            chatStore={chatStore}
-            settingsStore={settingsStore}
-            gatewayStore={gatewayStore}
-            agentsStore={agentsStore}
-            providersStore={providersStore}
             expandedSections={expandedSections}
             filterLevel={filterLevel}
             searchQuery={searchQuery}
@@ -356,11 +338,6 @@ export function Logs() {
 
 // ── 应用状态视图 ──────────────────────────────────────────────
 interface AppStatusViewProps {
-  chatStore: ReturnType<typeof useChatStore>;
-  settingsStore: ReturnType<typeof useSettingsStore>;
-  gatewayStore: ReturnType<typeof useGatewayStore>;
-  agentsStore: ReturnType<typeof useAgentsStore>;
-  providersStore: ReturnType<typeof useProviderStore>;
   expandedSections: Set<string>;
   filterLevel: LogLevel;
   searchQuery: string;
@@ -368,16 +345,19 @@ interface AppStatusViewProps {
 }
 
 function AppStatusView({
-  chatStore,
-  settingsStore,
-  gatewayStore,
-  agentsStore,
-  providersStore,
   expandedSections,
   filterLevel,
   searchQuery,
   onToggleSection,
 }: AppStatusViewProps) {
+  // 直接在组件内使用 store selectors
+  const chatSessions = useChatStore((s) => s.sessions);
+  const chatMessages = useChatStore((s) => s.messages);
+  const chatCurrentAgentId = useChatStore((s) => s.currentAgentId);
+  const gatewayStatus = useGatewayStore((s) => s.status);
+  const settingsTheme = useSettingsStore((s) => s.theme);
+  const agentsList = useAgentsStore((s) => s.agents);
+  const providerAccounts = useProviderStore((s) => s.accounts);
   const CATEGORY_LABELS: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
     chat: { label: '对话', icon: MessageSquare },
     gateway: { label: '网关', icon: Zap },
@@ -412,42 +392,42 @@ function AppStatusView({
       id: 'chat-1',
       category: 'chat',
       title: '会话数量',
-      content: `${chatStore.sessions.length} 个会话`,
+      content: `${chatSessions.length} 个会话`,
       level: 'info',
-      data: { sessionCount: chatStore.sessions.length },
+      data: { sessionCount: chatSessions.length },
     });
 
-    if (chatStore.messages.length > 0) {
+    if (chatMessages.length > 0) {
       data.push({
         id: 'chat-2',
         category: 'chat',
         title: '当前消息数',
-        content: `${chatStore.messages.length} 条消息`,
+        content: `${chatMessages.length} 条消息`,
         level: 'info',
-        data: { messageCount: chatStore.messages.length },
+        data: { messageCount: chatMessages.length },
       });
     }
 
-    if (chatStore.currentAgentId) {
+    if (chatCurrentAgentId) {
       data.push({
         id: 'chat-3',
         category: 'chat',
         title: '当前 Agent',
-        content: chatStore.currentAgentId,
+        content: chatCurrentAgentId,
         level: 'success',
-        data: { currentAgentId: chatStore.currentAgentId },
+        data: { currentAgentId: chatCurrentAgentId },
       });
     }
 
     // Gateway
-    const gwState = gatewayStore.status.state;
+    const gwState = gatewayStatus.state;
     data.push({
       id: 'gateway-1',
       category: 'gateway',
       title: 'Gateway 状态',
       content: gwState,
       level: gwState === 'running' ? 'success' : gwState === 'error' ? 'error' : 'warning',
-      data: gatewayStore.status,
+      data: gatewayStatus,
     });
 
     // Settings
@@ -455,13 +435,13 @@ function AppStatusView({
       id: 'settings-1',
       category: 'settings',
       title: '主题设置',
-      content: settingsStore.theme,
+      content: settingsTheme,
       level: 'info',
-      data: { theme: settingsStore.theme },
+      data: { theme: settingsTheme },
     });
 
     // Agents
-    const agents = agentsStore.agents ?? [];
+    const agents = agentsList ?? [];
     data.push({
       id: 'agents-1',
       category: 'agents',
@@ -472,15 +452,15 @@ function AppStatusView({
     });
 
     // Providers
-    const providers = providersStore.providers ?? [];
-    const enabledCount = providers.filter(p => p.enabled).length;
+    const providers = providerAccounts ?? [];
+    const enabledCount = providers.length;
     data.push({
       id: 'providers-1',
       category: 'providers',
-      title: '已启用的 Provider',
-      content: `${enabledCount} / ${providers.length}`,
+      title: 'Provider 账号数量',
+      content: `${enabledCount} 个账号`,
       level: enabledCount > 0 ? 'success' : 'warning',
-      data: { providers: providers.map(p => ({ id: p.id, name: p.name, enabled: p.enabled })) },
+      data: { providers: providers.map(p => ({ id: p.id, name: p.id })) },
     });
 
     // System
@@ -580,7 +560,7 @@ function AppStatusView({
                               {item.content}
                             </p>
                           )}
-                          {item.data && (
+                          {item.data != null && (
                             <details className="mt-1">
                               <summary className="text-[10px] cursor-pointer" style={{ color: 'var(--theme-text-muted)' }}>
                                 查看数据
@@ -703,7 +683,7 @@ function GatewayLogsView({
                   <span className="flex-1 break-all" style={{ color: 'var(--theme-text-primary)' }}>
                     {parsed.message}
                   </span>
-                  {parsed.data && Object.keys(parsed.data).length > 2 && (
+                  {parsed.data != null && typeof parsed.data === 'object' && Object.keys(parsed.data as object).length > 2 && (
                     <details className="shrink-0">
                       <summary className="cursor-pointer opacity-50 hover:opacity-100">
                         <Eye className="h-3 w-3" />

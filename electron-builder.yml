@@ -12,6 +12,7 @@ files:
   - dist
   - dist-electron
   - package.json
+  - "!**/.DS_Store"
 
 extraResources:
   - from: resources/
@@ -53,12 +54,7 @@ npmRebuild: false
 # Auto-update configuration
 # Uses GitHub Releases to publish and check for updates.
 # When you create a new release on GitHub, electron-updater will automatically detect it.
-publish:
-  provider: github
-  owner: ValueCell-ai
-  repo: MClaw
-  # Set to true if you want prerelease versions (alpha, beta) to be considered for updates
-  prerelease: false
+publish: null
 
 # macOS Configuration
 mac:

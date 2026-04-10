@@ -151,23 +151,23 @@ export function Setup() {
 
   const markSetupComplete = useSettingsStore((state) => state.markSetupComplete);
 
-  // Derive canProceed based on current step - computed directly to avoid useEffect
+  // Derive canProceed directly without useMemo for simplicity.
+  // Step WELCOME/RUNTIME/PROVIDER/INSTALLING/COMPLETE map directly to boolean conditions.
   const canProceed = useMemo(() => {
     switch (safeStepIndex) {
       case STEP.WELCOME:
+      case STEP.COMPLETE:
         return true;
       case STEP.RUNTIME:
         return runtimeChecksPassed;
       case STEP.PROVIDER:
         return providerConfigured;
       case STEP.INSTALLING:
-        return false; // Cannot manually proceed, auto-proceeds when done
-      case STEP.COMPLETE:
-        return true;
+        return false; // Cannot manually proceed; auto-proceeds when done
       default:
         return true;
     }
-  }, [safeStepIndex, providerConfigured, runtimeChecksPassed]);
+  }, [safeStepIndex, runtimeChecksPassed, providerConfigured]);
 
   const handleNext = async () => {
     if (isLastStep) {
@@ -323,49 +323,79 @@ function WelcomeContent() {
   const { t } = useTranslation(['setup', 'settings']);
   const { language, setLanguage } = useSettingsStore();
 
+  // Feature items defined inside component to avoid module-level i18n dependency
+  const featureKeys = (['noCommand', 'modernUI', 'bundles', 'crossPlatform'] as const);
+
   return (
-    <div data-testid="setup-welcome-step" className="text-center space-y-4">
-      <div className="mb-4 flex justify-center">
-        <img src={mclawIcon} alt="MClaw" className="h-16 w-16" />
-      </div>
-      <h2 className="text-xl font-semibold">{t('welcome.title')}</h2>
-      <p className="text-muted-foreground">
-        {t('welcome.description')}
-      </p>
+    <div data-testid="setup-welcome-step" className="relative">
+      <div className="flex flex-col lg:flex-row items-center gap-10">
+        {/* Left: Text content */}
+        <div className="flex-1 min-w-0">
+          {/* Header row: logo + lang */}
+          <div className="flex items-center justify-between mb-7">
+            <img src={mclawIcon} alt="MClaw" className="h-12 w-12 rounded-xl object-contain" />
+            <div className="flex items-center gap-0.5">
+              {SUPPORTED_LANGUAGES.map((lang, idx) => (
+                <span key={lang.code} className="flex items-center">
+                  {idx > 0 && (
+                    <span className="text-[11px] text-border mx-1">·</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setLanguage(lang.code)}
+                    className={cn(
+                      'text-[12px] transition-colors duration-150',
+                      language === lang.code
+                        ? 'text-foreground font-medium'
+                        : 'text-muted-foreground hover:text-foreground/70'
+                    )}
+                  >
+                    {lang.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
 
-      {/* Language Selector */}
-      <div className="flex justify-center gap-2 py-2">
-        {SUPPORTED_LANGUAGES.map((lang) => (
-          <Button
-            key={lang.code}
-            variant={language === lang.code ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setLanguage(lang.code)}
-            className="h-7 text-xs"
-          >
-            {lang.label}
-          </Button>
-        ))}
-      </div>
+          {/* Title */}
+          <h2 className="text-[30px] font-semibold tracking-tight text-foreground mb-2 leading-tight">
+            {t('welcome.title')}
+          </h2>
+          <p className="text-[14px] text-muted-foreground leading-relaxed max-w-xs mb-6">
+            {t('welcome.description')}
+          </p>
 
-      <ul className="text-left space-y-2 text-muted-foreground pt-2">
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.noCommand')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.modernUI')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.bundles')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.crossPlatform')}
-        </li>
-      </ul>
+          {/* Features */}
+          <ul className="space-y-2.5">
+            {featureKeys.map((key) => (
+              <li key={key} className="flex items-center gap-2.5">
+                <div className="h-px w-4 bg-primary/50 shrink-0" />
+                <span className="text-[13px] text-muted-foreground">
+                  {t(`welcome.features.${key}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Right: Abstract concentric circle visual (desktop only) */}
+        <div className="hidden lg:flex flex-1 justify-center items-center min-h-[240px]">
+          <div className="relative w-48 h-48">
+            {/* Outer ring */}
+            <div className="absolute inset-4 rounded-full border border-primary/10 animate-pulse" />
+            {/* Middle ring */}
+            <div className="absolute inset-8 rounded-full border border-primary/15" />
+            {/* Inner ring */}
+            <div className="absolute inset-12 rounded-full border border-primary/20" />
+            {/* Core */}
+            <div className="absolute inset-16 rounded-full bg-primary/10" />
+            {/* Center dot */}
+            <div className="absolute inset-20 rounded-full bg-primary/30 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-primary/60 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

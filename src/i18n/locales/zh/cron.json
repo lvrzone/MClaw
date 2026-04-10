@@ -32,58 +32,80 @@
         "schedule": "调度计划",
         "cronPlaceholder": "Cron 表达式 (例如：0 9 * * *)",
         "usePresets": "使用预设",
-        "useCustomCron": "使用自定义 Cron",
+        "useCustomCron": "使用自定义",
         "deliveryTitle": "投递设置",
-        "deliveryDescription": "选择仅在 MClaw 内保留结果，或把最终结果推送到外部通道。",
-        "deliveryModeNone": "仅在 MClaw 内",
-        "deliveryModeNoneDesc": "任务照常运行，结果只保留在应用内。",
-        "deliveryModeAnnounce": "发送到外部通道",
-        "deliveryModeAnnounceDesc": "将最终结果投递到已配置的消息通道。",
+        "deliveryModeNone": "仅在 MClaw",
+        "deliveryModeAnnounce": "发送到外部",
         "deliveryChannel": "通道",
-        "channelUnsupportedTag": "暂不支持",
         "deliveryAccount": "发送账号",
         "selectDeliveryAccount": "选择账号",
-        "deliveryAccountDesc": "这里直接复用 Channels 页面里的已配置账号列表。",
         "selectChannel": "选择通道",
-        "deliveryChannelUnsupported": "{{channel}} 通道当前不支持定时任务主动投递。",
-        "deliveryDefaultAccountHint": "将使用该通道当前的默认账号：{{account}}",
         "deliveryTarget": "接收目标",
-        "selectDeliveryTarget": "选择接收目标",
-        "loadingTargets": "正在加载目标...",
-        "currentTarget": "当前目标",
-        "deliveryTargetGroupDefault": "推荐",
-        "deliveryTargetGroupUsers": "用户",
-        "deliveryTargetGroupChats": "群聊",
-        "noDeliveryTargets": "当前 {{channel}} 账号暂无可选投递目标。",
-        "deliveryTargetPlaceholder": "输入该通道的投递目标",
-        "deliveryTargetPlaceholderFeishu": "例如：user:ou_xxx 或 chat:oc_xxx",
-        "deliveryTargetDesc": "这里会直接写入 OpenClaw 的 delivery.to。",
-        "deliveryTargetDescFeishu": "飞书可以填写用户目标 user:ou_xxx，或群聊目标 chat:oc_xxx。",
-        "deliveryTargetDescAuto": "这里会展示该通道账号下已发现的可投递目标。",
-        "deliveryTargetDescFeishuSelect": "请从可用的飞书用户或群聊中直接选择已校验的目标。",
-        "deliveryTargetDescFeishuAccount": "这里直接复用频道页的飞书账号列表，按所选账号对应的主账号目标进行投递。",
-        "feishuMainTargetTitle": "飞书主账号",
-        "feishuMainTargetDesc": "自动把当前默认飞书账号的主账号填入为投递目标。",
-        "useFeishuMainTarget": "使用主账号",
-        "resolvingTarget": "解析中...",
-        "targetChannel": "目标频道",
-        "noChannels": "无可用频道。请先添加频道。",
-        "discordChannelId": "Discord 频道 ID",
-        "discordChannelIdPlaceholder": "例如：1438452657525100686",
-        "discordChannelIdDesc": "右键点击 Discord 频道 → 复制频道 ID",
+        "selectDeliveryTarget": "选择目标",
+        "loadingTargets": "加载中...",
         "enableImmediately": "立即启用",
-        "enableImmediatelyDesc": "创建后立即开始运行此任务",
-        "saveChanges": "保存更改"
+        "saveChanges": "保存更改",
+        "usingTemplate": "基于模板：{{template}}"
     },
     "presets": {
         "everyMinute": "每分钟",
-        "every5Min": "每 5 分钟",
-        "every15Min": "每 15 分钟",
+        "every5Min": "每5分钟",
+        "every15Min": "每15分钟",
         "everyHour": "每小时",
-        "daily9am": "每天上午 9 点",
-        "daily6pm": "每天下午 6 点",
-        "weeklyMon": "每周 (周一上午 9 点)",
-        "monthly1st": "每月 (1号上午 9 点)"
+        "daily9am": "每天9点",
+        "daily6pm": "每天18点",
+        "weeklyMon": "每周一",
+        "monthly1st": "每月1号"
+    },
+    "categories": {
+        "all": "全部",
+        "productivity": "办公提效",
+        "study": "学习研究",
+        "life": "生活娱乐",
+        "entertainment": "游戏"
+    },
+    "templates": {
+        "news": {
+            "title": "热点资讯汇总",
+            "desc": "还在一条条刷资讯？每日自动整理，不用费心查找，快速看懂当天重点"
+        },
+        "travel": {
+            "title": "周末出游规划",
+            "desc": "周末不知道去哪玩？直接帮你规划好，喂到你嘴边"
+        },
+        "studyPlan": {
+            "title": "制定学习计划",
+            "desc": "一到备考就头大？把你的学习计划烂摊子全甩给我吧"
+        },
+        "explain": {
+            "title": "深度内容讲解",
+            "desc": "遇到难题卡壳想放弃？帮你拆解卡点，找到破局思路"
+        },
+        "invoice": {
+            "title": "发票智能归档",
+            "desc": "一到月末报销就火急火燎？把你桌面上那堆发票烂摊子全甩给我吧"
+        },
+        "docs": {
+            "title": "资料整理成文档",
+            "desc": "收藏夹塞满了却从没看？把资料链接发给我，帮你提炼出有用的东西"
+        },
+        "schedule": {
+            "title": "日程任务提醒",
+            "desc": "每天任务太多安排不过来？帮你管日程、盯进度、到点喊你"
+        },
+        "framework": {
+            "title": "知识点框架梳理",
+            "desc": "看书越看越乱？帮你把知识点理成一张清晰骨架图"
+        },
+        "doubt": {
+            "title": "学习目标督促打卡",
+            "desc": "单词背了就忘？每天帮你盯进度，到点就催你学"
+        }
+    },
+    "templateGrid": {
+        "title": "快速创建",
+        "existingTasks": "已有任务 ({{count}})",
+        "moreTemplates": "更多模板"
     },
     "toast": {
         "created": "任务已创建",
@@ -98,13 +120,8 @@
         "nameRequired": "请输入任务名称",
         "messageRequired": "请输入消息",
         "channelRequired": "请选择通道",
-        "deliveryChannelUnsupported": "{{channel}} 暂不支持定时任务投递",
         "deliveryTargetRequired": "请输入投递目标",
-        "deliveryTargetResolved": "已解析投递目标",
-        "failedLoadDeliveryTargets": "加载投递目标失败",
-        "failedResolveDeliveryTarget": "解析默认投递目标失败",
-        "discordIdRequired": "请输入 Discord 频道 ID",
-        "scheduleRequired": "请选择或输入调度计划"
+        "scheduleRequired": "请选择调度计划"
     },
     "schedule": {
         "everySeconds": "每 {{count}} 秒",

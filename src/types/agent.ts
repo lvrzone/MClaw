@@ -1,6 +1,9 @@
 export interface AgentSummary {
   id: string;
   name: string;
+  avatarId?: string;
+  description?: string;
+  providerAccountId?: string;
   isDefault: boolean;
   modelDisplay: string;
   modelRef?: string | null;

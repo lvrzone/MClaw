@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 type ControlUiInfo = {
   url: string;
   token: string;
@@ -476,16 +477,10 @@ export function Settings() {
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
 
         {/* Header */}
-        <div className="flex flex-row items-center justify-between mb-8 shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              {t('title')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {t('subtitle')}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title={t('title')}
+          description={t('subtitle')}
+        />
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2 space-y-8">

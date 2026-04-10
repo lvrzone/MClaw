@@ -10,6 +10,7 @@ import { useGatewayStore } from '@/stores/gateway';
 import { useSettingsStore } from '@/stores/settings';
 import { hostApiFetch } from '@/lib/host-api';
 import { trackUiEvent } from '@/lib/telemetry';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { ProvidersSettings } from '@/components/settings/ProvidersSettings';
 import { FeedbackState } from '@/components/common/FeedbackState';
 import {
@@ -276,16 +277,10 @@ export function Models() {
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 shrink-0 gap-4">
-          <div>
-            <h1 data-testid="models-page-title" className="text-base font-semibold text-foreground mb-1" style={{ color: 'var(--text-primary)' }}>
-              {t('dashboard:models.title')}
-            </h1>
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-              {t('dashboard:models.subtitle')}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title={t('dashboard:models.title')}
+          description={t('dashboard:models.subtitle')}
+        />
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2 space-y-8">

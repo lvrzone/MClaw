@@ -249,6 +249,11 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
           const unsubscribers: Array<() => void> = [];
           unsubscribers.push(subscribeHostEvent<GatewayStatus>('gateway:status', (payload) => {
             set({ status: payload });
+            // Invalidate the cached gateway port so that URL resolvers pick up
+            // the new port after a gateway restart without waiting for the 5s TTL.
+            import('@/lib/api-client').then(({ invalidateGatewayPortCache }) => {
+              invalidateGatewayPortCache();
+            }).catch(() => {});
           }));
           unsubscribers.push(subscribeHostEvent<{ message?: string }>('gateway:error', (payload) => {
             set({ lastError: payload.message || 'Gateway error' });
@@ -306,6 +311,10 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
                     `[gateway-store] reconciled stale state: ${current.state} → ${latest.state}`,
                   );
                   set({ status: latest });
+                  // Invalidate cached port so URL resolvers pick up new state immediately
+                  import('@/lib/api-client').then(({ invalidateGatewayPortCache }) => {
+                    invalidateGatewayPortCache();
+                  }).catch(() => {});
                 }
               })
               .catch(() => { /* ignore */ });

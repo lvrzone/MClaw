@@ -16,6 +16,7 @@ import { warmupNetworkOptimization } from '../utils/uv-env';
 import { initTelemetry } from '../utils/telemetry';
 
 import { ClawHubService } from '../gateway/clawhub';
+import { SkillHubService } from '../gateway/skillhub';
 import { ensureMClawContext, repairMClawOnlyBootstrapFiles } from '../utils/openclaw-workspace';
 import { autoInstallCliIfNeeded, generateCompletionCache, installCompletionToProfile } from '../utils/openclaw-cli';
 import { isQuitting, setQuitting } from './app-state';
@@ -118,6 +119,7 @@ const gotTheLock = gotElectronLock && gotFileLock;
 let mainWindow: BrowserWindow | null = null;
 let gatewayManager!: GatewayManager;
 let clawHubService!: ClawHubService;
+let skillHubService!: SkillHubService;
 let hostEventBus!: HostEventBus;
 let hostApiServer: Server | null = null;
 const mainWindowFocusState = createMainWindowFocusState();
@@ -331,11 +333,12 @@ async function initialize(): Promise<void> {
   );
 
   // Register IPC handlers
-  registerIpcHandlers(gatewayManager, clawHubService, window);
+  registerIpcHandlers(gatewayManager, clawHubService, skillHubService, window);
 
   hostApiServer = startHostApiServer({
     gatewayManager,
     clawHubService,
+    skillHubService,
     eventBus: hostEventBus,
     mainWindow: window,
   });
@@ -519,6 +522,7 @@ if (gotTheLock) {
 
   gatewayManager = new GatewayManager();
   clawHubService = new ClawHubService();
+  skillHubService = new SkillHubService();
   hostEventBus = new HostEventBus();
 
   // When a second instance is launched, focus the existing window instead.

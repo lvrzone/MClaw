@@ -32,58 +32,80 @@
         "schedule": "Schedule",
         "cronPlaceholder": "Cron expression (e.g., 0 9 * * *)",
         "usePresets": "Use presets",
-        "useCustomCron": "Use custom cron",
+        "useCustomCron": "Custom",
         "deliveryTitle": "Delivery",
-        "deliveryDescription": "Choose whether this task stays in MClaw or is pushed to an external channel.",
-        "deliveryModeNone": "In MClaw only",
-        "deliveryModeNoneDesc": "Run the task and keep the result in the app.",
-        "deliveryModeAnnounce": "External channel",
-        "deliveryModeAnnounceDesc": "Send the final result through a configured channel.",
+        "deliveryModeNone": "In MClaw",
+        "deliveryModeAnnounce": "External",
         "deliveryChannel": "Channel",
-        "channelUnsupportedTag": "Unsupported",
-        "deliveryAccount": "Sending Account",
-        "selectDeliveryAccount": "Select an account",
-        "deliveryAccountDesc": "Uses the same configured account list shown on the Channels page.",
-        "selectChannel": "Select a channel",
-        "deliveryChannelUnsupported": "{{channel}} does not currently support scheduled outbound delivery.",
-        "deliveryDefaultAccountHint": "Uses the channel's default account: {{account}}",
-        "deliveryTarget": "Recipient / Target",
-        "selectDeliveryTarget": "Select a delivery target",
-        "loadingTargets": "Loading targets...",
-        "currentTarget": "Current target",
-        "deliveryTargetGroupDefault": "Recommended",
-        "deliveryTargetGroupUsers": "Users",
-        "deliveryTargetGroupChats": "Chats",
-        "noDeliveryTargets": "No delivery targets are available for the selected {{channel}} account.",
-        "deliveryTargetPlaceholder": "Enter the delivery target for this channel",
-        "deliveryTargetPlaceholderFeishu": "e.g., user:ou_xxx or chat:oc_xxx",
-        "deliveryTargetDesc": "This maps to delivery.to in OpenClaw and is sent as-is.",
-        "deliveryTargetDescFeishu": "Use a Feishu user target like user:ou_xxx or a chat target like chat:oc_xxx.",
-        "deliveryTargetDescAuto": "Select from targets discovered for the chosen channel account.",
-        "deliveryTargetDescFeishuSelect": "Select a verified Feishu recipient from the available users or chats.",
-        "deliveryTargetDescFeishuAccount": "Choose from the configured Feishu channel accounts, using the same account list as the Channels page.",
-        "feishuMainTargetTitle": "Feishu main account",
-        "feishuMainTargetDesc": "Auto-fill the current default Feishu account owner as the delivery target.",
-        "useFeishuMainTarget": "Use main account",
-        "resolvingTarget": "Resolving...",
-        "targetChannel": "Target Channel",
-        "noChannels": "No channels available. Add a channel first.",
-        "discordChannelId": "Discord Channel ID",
-        "discordChannelIdPlaceholder": "e.g., 1438452657525100686",
-        "discordChannelIdDesc": "Right-click the Discord channel → Copy Channel ID",
+        "deliveryAccount": "Account",
+        "selectDeliveryAccount": "Select account",
+        "selectChannel": "Select channel",
+        "deliveryTarget": "Target",
+        "selectDeliveryTarget": "Select target",
+        "loadingTargets": "Loading...",
         "enableImmediately": "Enable immediately",
-        "enableImmediatelyDesc": "Start running this task after creation",
-        "saveChanges": "Save Changes"
+        "saveChanges": "Save Changes",
+        "usingTemplate": "Using template: {{template}}"
     },
     "presets": {
-        "everyMinute": "Every minute",
-        "every5Min": "Every 5 minutes",
-        "every15Min": "Every 15 minutes",
-        "everyHour": "Every hour",
-        "daily9am": "Daily at 9am",
-        "daily6pm": "Daily at 6pm",
-        "weeklyMon": "Weekly (Mon 9am)",
-        "monthly1st": "Monthly (1st at 9am)"
+        "everyMinute": "Minutely",
+        "every5Min": "5 min",
+        "every15Min": "15 min",
+        "everyHour": "Hourly",
+        "daily9am": "Daily 9am",
+        "daily6pm": "Daily 6pm",
+        "weeklyMon": "Weekly Mon",
+        "monthly1st": "Monthly 1st"
+    },
+    "categories": {
+        "all": "All",
+        "productivity": "Productivity",
+        "study": "Study",
+        "life": "Life",
+        "entertainment": "Game"
+    },
+    "templates": {
+        "news": {
+            "title": "News Digest",
+            "desc": "Stop scrolling news manually. Get a daily summary of the most important stories."
+        },
+        "travel": {
+            "title": "Weekend Trip Planner",
+            "desc": "Don't know where to go this weekend? Let me plan it for you."
+        },
+        "studyPlan": {
+            "title": "Study Plan",
+            "desc": "Exam coming up? Let me help you create a study plan."
+        },
+        "explain": {
+            "title": "Deep Explanation",
+            "desc": "Stuck on something? Let me break it down and find the breakthrough."
+        },
+        "invoice": {
+            "title": "Invoice Filing",
+            "desc": "End of month chaos with receipts? Let me organize them for you."
+        },
+        "docs": {
+            "title": "Doc Summarizer",
+            "desc": "Bookmark graveyard? Send me links and I'll extract the useful parts."
+        },
+        "schedule": {
+            "title": "Task Reminder",
+            "desc": "Too many tasks to track? I'll manage your schedule and remind you."
+        },
+        "framework": {
+            "title": "Knowledge Map",
+            "desc": "Reading gets overwhelming? I'll map out the knowledge structure for you."
+        },
+        "doubt": {
+            "title": "Study Tracker",
+            "desc": "Words keep slipping? I'll track your progress and nudge you daily."
+        }
+    },
+    "templateGrid": {
+        "title": "Quick Create",
+        "existingTasks": "Existing Tasks ({{count}})",
+        "moreTemplates": "More Templates"
     },
     "toast": {
         "created": "Task created",
@@ -98,22 +120,17 @@
         "nameRequired": "Please enter a task name",
         "messageRequired": "Please enter a message",
         "channelRequired": "Please select a channel",
-        "deliveryChannelUnsupported": "{{channel}} does not support scheduled delivery yet",
         "deliveryTargetRequired": "Please enter a delivery target",
-        "deliveryTargetResolved": "Delivery target resolved",
-        "failedLoadDeliveryTargets": "Failed to load delivery targets",
-        "failedResolveDeliveryTarget": "Failed to resolve the default delivery target",
-        "discordIdRequired": "Please enter a Discord Channel ID",
-        "scheduleRequired": "Please select or enter a schedule"
+        "scheduleRequired": "Please select a schedule"
     },
     "schedule": {
         "everySeconds": "Every {{count}}s",
-        "everyMinutes": "Every {{count}} minutes",
-        "everyHours": "Every {{count}} hours",
-        "everyDays": "Every {{count}} days",
+        "everyMinutes": "Every {{count}} min",
+        "everyHours": "Every {{count}}h",
+        "everyDays": "Every {{count}}d",
         "onceAt": "Once at {{time}}",
-        "weeklyAt": "Weekly on {{day}} at {{time}}",
-        "monthlyAtDay": "Monthly on day {{day}} at {{time}}",
+        "weeklyAt": "Weekly {{day}} {{time}}",
+        "monthlyAtDay": "Monthly day {{day}} {{time}}",
         "dailyAt": "Daily at {{time}}",
         "unknown": "Unknown"
     }

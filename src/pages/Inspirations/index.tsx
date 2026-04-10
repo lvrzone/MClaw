@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/stores/chat';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 // 模板分类
 type TemplateCategory = 'all' | 'coding' | 'writing' | 'analysis' | 'creative';
@@ -138,7 +139,6 @@ const CATEGORY_CONFIG: Record<TemplateCategory, { label: string; icon: React.Rea
 export function Inspirations() {
   const navigate = useNavigate();
   const newSession = useChatStore((s) => s.newSession);
-  const currentSessionKey = useChatStore((s) => s.currentSessionKey);
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<WorkTemplate | null>(null);
@@ -189,17 +189,10 @@ export function Inspirations() {
         </button>
 
         {/* 页面标题 */}
-        <div className="mb-6">
-          <h1 
-            className="text-base font-semibold mb-1"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            找灵感
-          </h1>
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            选择模板快速开始
-          </p>
-        </div>
+        <PageHeader
+          title="找灵感"
+          description="选择模板快速开始"
+        />
 
         {/* 搜索栏 */}
         <div className="relative mb-4">

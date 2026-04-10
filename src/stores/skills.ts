@@ -68,8 +68,8 @@ interface SkillsState {
 
   // Actions
   fetchSkills: () => Promise<void>;
-  searchSkills: (query: string) => Promise<void>;
-  installSkill: (slug: string, version?: string) => Promise<void>;
+  searchSkills: (query: string, source?: 'clawhub' | 'skillhub') => Promise<void>;
+  installSkill: (slug: string, version?: string, source?: 'clawhub' | 'skillhub') => Promise<void>;
   uninstallSkill: (slug: string) => Promise<void>;
   enableSkill: (skillId: string) => Promise<void>;
   disableSkill: (skillId: string) => Promise<void>;
@@ -176,10 +176,11 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     }
   },
 
-  searchSkills: async (query: string) => {
+  searchSkills: async (query: string, source: 'clawhub' | 'skillhub' = 'clawhub') => {
     set({ searching: true, searchError: null });
     try {
-      const result = await hostApiFetch<{ success: boolean; results?: MarketplaceSkill[]; error?: string }>('/api/clawhub/search', {
+      const apiPath = source === 'skillhub' ? '/api/skillhub/search' : '/api/clawhub/search';
+      const result = await hostApiFetch<{ success: boolean; results?: MarketplaceSkill[]; error?: string }>(apiPath, {
         method: 'POST',
         body: JSON.stringify({ query }),
       });
@@ -199,10 +200,11 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     }
   },
 
-  installSkill: async (slug: string, version?: string) => {
+  installSkill: async (slug: string, version?: string, source: 'clawhub' | 'skillhub' = 'clawhub') => {
     set((state) => ({ installing: { ...state.installing, [slug]: true } }));
     try {
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/clawhub/install', {
+      const apiPath = source === 'skillhub' ? '/api/skillhub/install' : '/api/clawhub/install';
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(apiPath, {
         method: 'POST',
         body: JSON.stringify({ slug, version }),
       });

@@ -12,6 +12,16 @@ const MAIN_AGENT_ID = 'main';
 const MAIN_AGENT_NAME = 'Main Agent';
 const DEFAULT_ACCOUNT_ID = 'default';
 const DEFAULT_WORKSPACE_PATH = '~/.openclaw/workspace';
+const DEFAULT_AVATAR_IDS = [
+  'avatar-01',
+  'avatar-02',
+  'avatar-03',
+  'avatar-04',
+  'avatar-05',
+  'avatar-06',
+  'avatar-07',
+  'avatar-08',
+];
 const AGENT_BOOTSTRAP_FILES = [
   'AGENTS.md',
   'SOUL.md',
@@ -44,6 +54,7 @@ interface AgentListEntry extends Record<string, unknown> {
   workspace?: string;
   agentDir?: string;
   model?: string | AgentModelConfig;
+  avatarId?: string;
 }
 
 interface AgentsConfig extends Record<string, unknown> {
@@ -89,6 +100,7 @@ export interface AgentSummary {
   agentDir: string;
   mainSessionKey: string;
   channelTypes: string[];
+  avatarId?: string;
 }
 
 export interface AgentsSnapshot {
@@ -502,12 +514,20 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument, preloadedCha
   const defaultModelConfig = (config.agents as AgentsConfig | undefined)?.defaults?.model;
   const defaultModelLabel = formatModelLabel(defaultModelConfig);
   const defaultModelRef = resolveModelRef(defaultModelConfig);
+  // 为没有头像的 agent 分配默认头像
+  let avatarAssignmentIndex = 0;
+  
   const agents: AgentSummary[] = entries.map((entry) => {
     const explicitModelRef = resolveModelRef(entry.model);
     const modelLabel = formatModelLabel(entry.model) || defaultModelLabel || 'Not configured';
     const inheritedModel = !explicitModelRef && Boolean(defaultModelLabel);
     const entryIdNorm = normalizeAgentIdForBinding(entry.id);
     const ownedChannels = agentChannelSets.get(entryIdNorm) ?? new Set<string>();
+    
+    // 如果没有头像，使用默认头像
+    const avatarId = entry.avatarId || DEFAULT_AVATAR_IDS[avatarAssignmentIndex % DEFAULT_AVATAR_IDS.length];
+    avatarAssignmentIndex++;
+    
     return {
       id: entry.id,
       name: entry.name || (entry.id === MAIN_AGENT_ID ? MAIN_AGENT_NAME : entry.id),
@@ -522,6 +542,7 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument, preloadedCha
       channelTypes: configuredChannels
         .filter((ct) => ownedChannels.has(ct))
         .map((channelType) => toUiChannelType(channelType)),
+      avatarId,
     };
   });
 
@@ -569,12 +590,17 @@ export async function createAgent(
       suffix += 1;
     }
 
+    // 为新 Agent 分配默认头像
+    const avatarIndex = entries.length % DEFAULT_AVATAR_IDS.length;
+    const defaultAvatarId = DEFAULT_AVATAR_IDS[avatarIndex];
+
     const nextEntries = syntheticMain ? [createImplicitMainEntry(config), ...entries.filter((_, index) => index > 0)] : [...entries];
     const newAgent: AgentListEntry = {
       id: nextId,
       name: normalizedName,
       workspace: `~/.openclaw/workspace-${nextId}`,
       agentDir: getDefaultAgentDirPath(nextId),
+      avatarId: defaultAvatarId,
     };
 
     if (!nextEntries.some((entry) => entry.id === MAIN_AGENT_ID) && syntheticMain) {
@@ -589,7 +615,7 @@ export async function createAgent(
 
     await provisionAgentFilesystem(config, newAgent, { inheritWorkspace: options?.inheritWorkspace });
     await writeOpenClawConfig(config);
-    logger.info('Created agent config entry', { agentId: nextId, inheritWorkspace: !!options?.inheritWorkspace });
+    logger.info('Created agent config entry', { agentId: nextId, inheritWorkspace: !!options?.inheritWorkspace, avatarId: defaultAvatarId });
     return buildSnapshotFromConfig(config);
   });
 }
@@ -654,6 +680,35 @@ export async function updateAgentModel(agentId: string, modelRef: string | null)
 
     await writeOpenClawConfig(config);
     logger.info('Updated agent model', { agentId, modelRef: normalizedModelRef || null });
+    return buildSnapshotFromConfig(config);
+  });
+}
+
+export async function updateAgentAvatar(agentId: string, avatarId: string): Promise<AgentsSnapshot> {
+  return withConfigLock(async () => {
+    const config = await readOpenClawConfig() as AgentConfigDocument;
+    const { agentsConfig, entries } = normalizeAgentsConfig(config);
+    const index = entries.findIndex((entry) => entry.id === agentId);
+    if (index === -1) {
+      throw new Error(`Agent "${agentId}" not found`);
+    }
+
+    const nextEntry: AgentListEntry = { ...entries[index] };
+
+    if (!avatarId) {
+      delete nextEntry.avatarId;
+    } else {
+      nextEntry.avatarId = avatarId;
+    }
+
+    entries[index] = nextEntry;
+    config.agents = {
+      ...agentsConfig,
+      list: entries,
+    };
+
+    await writeOpenClawConfig(config);
+    logger.info('Updated agent avatar', { agentId, avatarId });
     return buildSnapshotFromConfig(config);
   });
 }

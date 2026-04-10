@@ -1903,8 +1903,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
               // would be overwritten by the next turn's deltas and never appear in the UI.
               const currentStream = s.streamingMessage as RawMessage | null;
               const snapshotMsgs: RawMessage[] = [];
-              // Save the stream ID before clearing streamingMessage, so final can use the same ID
-              const streamSnapId = currentStream?.id || (currentStream ? `${runId || 'run'}-turn-${s.messages.length}` : null);
               if (currentStream) {
                 const streamRole = currentStream.role;
                 if (streamRole === 'assistant' || streamRole === undefined) {
@@ -1931,6 +1929,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
               };
             });
+            // Determine if this is a tool-only turn (no real text/image output)
+            const toolOnly = !hasOutput;
+            // Capture the stream snapshot ID for de-duplication in the next set() call
+            const streamSnapId = (get().streamingMessage as RawMessage | null)?.id
+              || null;
             // Use the same ID as the snapshot for the final message to enable proper filtering
             const msgId = toolOnly ? `run-${runId}-tool-${Date.now()}` : (streamSnapId || finalMsg.id);
             set((s) => {

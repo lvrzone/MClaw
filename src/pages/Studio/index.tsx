@@ -1,402 +1,1205 @@
 /**
- * MClaw Studio - 工作室监控面板
- * 展示所有 Agent 的运作状态、实时数据分析、空闲/忙碌状态
+ * MClaw Studio - 档案室
+ * 展示所有 Agent 的真实数据，以名片形式呈现
+ * 支持招聘新 Agent、模型更换、上下文压缩等操作
  */
-import { useEffect, useState } from 'react';
-import { Bot, AlertCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo, useRef, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bot, AlertCircle, MessageSquare, Activity, RefreshCw, Zap, Settings, Plus, Trash2, X, Sparkles, Minimize2, Image, Cog, FolderOpen } from 'lucide-react';
 import { useAgentsStore } from '@/stores/agents';
 import { useGatewayStore } from '@/stores/gateway';
 import { useChatStore } from '@/stores/chat';
+import { useProviderStore } from '@/stores/providers';
+import { hostApiFetch } from '@/lib/host-api';
+import { invokeIpc } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
-// Agent 状态类型
-type AgentStatus = 'idle' | 'busy' | 'error' | 'offline';
+// 预设头像列表 - 高级人像系列
+import avatar01 from '@/assets/avatars/avatar-01.png';
+import avatar02 from '@/assets/avatars/avatar-02.png';
+import avatar03 from '@/assets/avatars/avatar-03.png';
+import avatar04 from '@/assets/avatars/avatar-04.png';
+import avatar05 from '@/assets/avatars/avatar-05.png';
+import avatar06 from '@/assets/avatars/avatar-06.png';
+import avatar07 from '@/assets/avatars/avatar-07.png';
+import avatar08 from '@/assets/avatars/avatar-08.png';
 
-interface AgentRuntimeInfo {
-  agentId: string;
-  status: AgentStatus;
-  sessionsHandled: number;
-  lastActivity: number | null;
-  // 上下文相关
-  contextTokens: number;
-  maxTokens: number;
-  messageCount: number;
-  // 其他指标
-  uptime: number;
-  errorCount: number;
-  avgResponseMs: number;
-}
+const PRESET_AVATARS = [
+  { id: 'avatar-01', src: avatar01, name: '优雅绅士' },
+  { id: 'avatar-02', src: avatar02, name: '知性女士' },
+  { id: 'avatar-03', src: avatar03, name: '酷感型男' },
+  { id: 'avatar-04', src: avatar04, name: '神秘佳人' },
+  { id: 'avatar-05', src: avatar05, name: '赛博先锋' },
+  { id: 'avatar-06', src: avatar06, name: '金色眼眸' },
+  { id: 'avatar-07', src: avatar07, name: '霓虹魅影' },
+  { id: 'avatar-08', src: avatar08, name: '翡翠之眸' },
+];
 
-// 全局统计类型
-interface GlobalStats {
-  totalSessions: number;
-  activeAgents: number;
-  totalRequests: number;
-  avgResponseTime: number;
-  totalTokens: number;
-  successRate: number;
-}
+// Agent 类型
+type Agent = NonNullable<ReturnType<typeof useAgentsStore.getState>['agents']>[number];
 
-// 统计卡片组件 - 玻璃态设计
-const GlassStatCard = ({ 
-  icon, 
-  label, 
-  value, 
-  gradient,
-  delay = 0,
-}: { 
-  icon: React.ReactNode; 
-  label: string; 
-  value: string; 
-  gradient: string;
-  delay?: number;
-}) => (
-  <div
-    className="relative overflow-hidden rounded-2xl p-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-    style={{
-      background: 'rgba(255, 255, 255, 0.7)',
-      backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.8)',
-      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)',
-      animation: `fadeSlideUp 0.5s ease-out ${delay}ms both`,
-    }}
-  >
-    {/* 渐变背景装饰 */}
-    <div 
-      className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-20 blur-3xl"
-      style={{ background: gradient }}
-    />
+// 状态配置 - 黑白灰
+const statusConfig = {
+  active: { color: '#22c55e', label: '活跃', bg: 'rgba(34, 197, 94, 0.12)' },
+  idle: { color: '#6b7280', label: '空闲', bg: 'rgba(107, 114, 128, 0.12)' },
+  error: { color: '#ef4444', label: '错误', bg: 'rgba(239, 68, 68, 0.12)' },
+  offline: { color: '#9ca3af', label: '离线', bg: 'rgba(156, 163, 175, 0.12)' },
+};
+
+// 获取会话消息数
+async function getSessionMessageCount(sessionKey: string): Promise<number> {
+  try {
+    const agentId = sessionKey.split(':')[1];
+    const sessionId = sessionKey.split(':')[2];
+    if (!agentId || !sessionId) return 0;
     
-    <div className="relative flex items-start justify-between">
-      <div>
-        <p 
-          className="text-xs font-medium mb-2 tracking-wide uppercase"
-          style={{ color: 'var(--theme-text-muted)' }}
-        >
-          {label}
-        </p>
-        <p 
-          className="text-2xl font-bold"
-          style={{ 
-            color: 'var(--theme-text-primary)',
-            fontFamily: 'SF Pro Display, -apple-system, sans-serif',
-          }}
-        >
-          {value}
-        </p>
-      </div>
-      <div 
-        className="p-2.5 rounded-xl"
-        style={{ background: gradient, opacity: 0.9 }}
+    const response = await hostApiFetch<{ success: boolean; messages?: unknown[] }>(
+      `/api/sessions/transcript?agentId=${encodeURIComponent(agentId)}&sessionId=${encodeURIComponent(sessionId)}`
+    );
+    return response.messages?.length || 0;
+  } catch {
+    return 0;
+  }
+}
+
+// 真实上下文使用情况
+interface ContextUsage {
+  messageCount: number;
+  totalChars: number;
+  totalTokens: number;
+  contextLimit: number;
+  usedPercent: number;
+}
+
+async function getSessionContextUsage(sessionKey: string): Promise<ContextUsage | null> {
+  try {
+    const agentId = sessionKey.split(':')[1];
+    const sessionId = sessionKey.split(':')[2];
+    if (!agentId || !sessionId) return null;
+    
+    const response = await hostApiFetch<{ 
+      success: boolean; 
+      messageCount: number;
+      totalChars: number;
+      totalTokens: number;
+      contextLimit: number;
+      usedPercent: number;
+    }>(
+      `/api/sessions/context?agentId=${encodeURIComponent(agentId)}&sessionId=${encodeURIComponent(sessionId)}`
+    );
+    
+    if (response.success) {
+      return {
+        messageCount: response.messageCount || 0,
+        totalChars: response.totalChars || 0,
+        totalTokens: response.totalTokens || 0,
+        contextLimit: response.contextLimit || 128000,
+        usedPercent: response.usedPercent || 0,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// 压缩会话上下文
+async function compressSessionContext(sessionKey: string, keepCount: number = 20): Promise<{ success: boolean; removedCount?: number; error?: string }> {
+  try {
+    const response = await hostApiFetch<{ success: boolean; removedCount?: number; error?: string }>(
+      '/api/sessions/compress',
+      {
+        method: 'POST',
+        body: JSON.stringify({ sessionKey, keepCount }),
+      }
+    );
+    return response;
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+// 招聘对话框组件
+function RecruitDialog({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (name: string, options: { inheritWorkspace: boolean }) => Promise<void>;
+}) {
+  const { t } = useTranslation('agents');
+  const [name, setName] = useState('');
+  const [inheritWorkspace, setInheritWorkspace] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await onCreate(name.trim(), { inheritWorkspace });
+      toast.success(`${name} 已加入档案室`);
+      onClose();
+    } catch (error) {
+      toast.error(t('toast.agentCreateFailed', { error: String(error) }));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden"
+        style={{
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.1)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+        }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {icon}
+        <div className="relative px-6 pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 100%)' }}>
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-lg" style={{ color: '#6b7280' }}>
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl font-bold" style={{ background: '#000' }}>
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: '#111827' }}>招聘新成员</h2>
+              <p className="text-[11px]" style={{ color: '#6b7280' }}>加入档案室，开启 AI 协作之旅</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium" style={{ color: '#6b7280' }}>成员名称</label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="给新成员起个名字..."
+              className="w-full px-4 py-2.5 rounded-xl text-[13px] outline-none"
+              style={{ background: '#f9fafb', border: '1px solid rgba(0,0,0,0.1)', color: '#111827' }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) { void handleSubmit(); } }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: '#f3f4f6' }}>
+            <div>
+              <p className="text-[12px] font-medium" style={{ color: '#111827' }}>继承工作空间</p>
+              <p className="text-[10px] mt-0.5" style={{ color: '#6b7280' }}>复制现有配置和技能</p>
+            </div>
+            <button
+              onClick={() => setInheritWorkspace(!inheritWorkspace)}
+              className={cn('w-10 h-6 rounded-full relative', inheritWorkspace ? 'bg-black' : 'bg-gray-300 dark:bg-gray-600')}
+            >
+              <div className={cn('w-4 h-4 rounded-full absolute top-1 bg-white shadow', inheritWorkspace ? 'left-5' : 'left-1')} />
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl text-[12px] font-medium" style={{ background: '#f3f4f6', border: '1px solid rgba(0,0,0,0.08)', color: '#6b7280' }}>取消</button>
+            <button
+              onClick={() => void handleSubmit()}
+              disabled={saving || !name.trim()}
+              className="flex-1 h-10 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2"
+              style={{ background: name.trim() ? '#000' : '#f3f4f6', color: name.trim() ? '#fff' : '#9ca3af' }}
+            >
+              {saving ? (<><RefreshCw className="w-3.5 h-3.5" />招聘中...</>) : (<><Plus className="w-3.5 h-3.5" />确认招聘</>)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 删除确认对话框
+function DeleteConfirmDialog({ agentName, onConfirm, onCancel }: { agentName: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="w-full max-w-xs rounded-2xl p-6" style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="text-center mb-5">
+          <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
+            <Trash2 className="w-5 h-5" style={{ color: '#ef4444' }} />
+          </div>
+          <h3 className="text-[14px] font-medium" style={{ color: '#111827' }}>确认移除</h3>
+          <p className="text-[11px] mt-1" style={{ color: '#6b7280' }}>移除 "{agentName}"？此操作无法撤销</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 h-9 rounded-lg text-[11px] font-medium" style={{ background: '#f3f4f6', color: '#6b7280' }}>取消</button>
+          <button onClick={onConfirm} className="flex-1 h-9 rounded-lg text-[11px] font-medium bg-red-500 text-white">确认移除</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 模型 Logo 映射
+const modelLogos: Record<string, string> = {
+  'gpt': '🤖',
+  'claude': '🧠',
+  'gemini': '✨',
+  'deepseek': '🔮',
+  'qwen': '🐱',
+  'yi': '💫',
+  'moonshot': '🌙',
+  'zhipu': '📚',
+  'minimax': '🎯',
+  'doubao': '🎪',
+  'kimi': '🌙',
+  'default': '🔗',
+};
+
+function getModelLogo(modelName: string): string {
+  const lower = modelName.toLowerCase();
+  for (const [key, logo] of Object.entries(modelLogos)) {
+    if (lower.includes(key)) return logo;
+  }
+  return modelLogos.default;
+}
+
+// Agent 名片卡片组件 - 紧凑横向布局
+const AgentProfileCard = memo(({
+  agent, sessionsCount, totalMessages, channels, navigate,
+  onDelete, onCompressContext, onChangeAvatar, onChangeModel, compressing,
+  contextUsage,
+}: {
+  agent: Agent;
+  sessionsCount: number;
+  totalMessages: number;
+  channels: string[];
+  navigate: ReturnType<typeof useNavigate>;
+  onDelete: () => void;
+  onCompressContext: () => void;
+  onChangeAvatar: () => void;
+  onChangeModel: () => void;
+  compressing: boolean;
+  contextUsage?: ContextUsage | null;
+}) => {
+  const [collapsed, _setCollapsed] = useState(false);
+  const providerAccounts = useProviderStore((s) => s.accounts);
+  const providerAccount = providerAccounts.find((p) => p.id === agent.providerAccountId);
+  const providerName = providerAccount?.vendorId || '未配置';
+  const modelName = agent.modelRef?.split('/')[1] || '未设置';
+  const status = sessionsCount > 0 ? 'active' : 'idle';
+  const config = statusConfig[status];
+  const usedPercent = contextUsage?.usedPercent || 0;
+  const totalTokens = contextUsage?.totalTokens || 0;
+
+  // 获取当前头像
+  const avatarId = (agent as any).avatarId || '';
+  const isCustomAvatar = avatarId.startsWith('custom:');
+  const customAvatarUrl = isCustomAvatar ? avatarId.replace('custom:', '') : null;
+  const presetAvatar = PRESET_AVATARS.find(a => a.id === avatarId);
+  const currentAvatar = presetAvatar || (isCustomAvatar && customAvatarUrl ? { id: 'custom', src: customAvatarUrl, name: '自定义头像' } : PRESET_AVATARS[0]);
+
+  // 打开工作区文件夹
+  const openWorkspace = async () => {
+    try {
+      const response = await hostApiFetch<any>(
+        `/api/config/agent/${encodeURIComponent(agent.id)}/workspace`
+      );
+      
+      console.log('[Studio] API 完整响应:', JSON.stringify(response, null, 2));
+      
+      if (!response) {
+        alert('获取工作区路径失败');
+        return;
+      }
+      
+      // 支持多种响应格式
+      const expandedPath = response.expandedPath || response.path || null;
+      
+      if (!expandedPath) {
+        alert(`工作区路径为空。API 返回: ${JSON.stringify(response)}`);
+        return;
+      }
+      
+      if (!response.exists) {
+        alert(`工作区目录不存在: ${response.path}`);
+        return;
+      }
+      
+      console.log('[Studio] 打开文件夹:', expandedPath);
+      await invokeIpc('shell:showItemInFolder', expandedPath);
+    } catch (err) {
+      console.error('[Studio] 打开工作区失败:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      alert(`打开工作区失败: ${message}`);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.6)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0, 0, 0, 0.08)', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.04)' }}>
+      {/* 主内容区 - 横向布局 */}
+      <div className="flex">
+        {/* 头像 - 左侧 */}
+        <button 
+          onClick={onChangeAvatar}
+          className="w-20 h-20 shrink-0 rounded-br-2xl rounded-tl-2xl overflow-hidden shadow-lg relative group cursor-pointer"
+          title="点击更换头像"
+        >
+          {currentAvatar ? (
+            <img src={currentAvatar.src} alt={currentAvatar.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#000' }}>
+              {agent.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center">
+            <Image className="w-6 h-6 text-white" />
+          </div>
+        </button>
+
+        {/* 中间信息区 - 名字和简介占主导 */}
+        <div className="flex-1 px-3 py-2 min-w-0">
+          {/* 名字 + 简介 */}
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{agent.name}</h3>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-medium shrink-0" style={{ background: config.bg, color: config.color }}>
+                {config.label}
+              </span>
+            </div>
+            {agent.description && (
+              <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: 'var(--text-muted)' }}>
+                {agent.description}
+              </p>
+            )}
+          </div>
+
+          {/* 统计数据 - 紧凑横向 */}
+          {!collapsed && (
+            <div className="flex items-center gap-2 text-[10px]">
+              <span style={{ color: 'var(--text-muted)' }}>📊 {sessionsCount}会话</span>
+              <span style={{ color: 'var(--text-muted)' }}>📢 {channels.length}渠道</span>
+              {contextUsage && (
+                <span style={{ color: usedPercent > 80 ? '#ef4444' : usedPercent > 50 ? '#f59e0b' : '#22c55e' }}>
+                  📈 {usedPercent}%
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 右侧操作按钮 - 垂直排列 */}
+        <div className="flex flex-col items-center gap-1 px-2 py-2">
+          <button onClick={openWorkspace} className="p-1.5 rounded-lg" style={{ color: 'var(--accent-blue)' }} title="打开工作区文件夹">
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <button onClick={() => navigate('/config')} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }} title="属性配置">
+            <Cog className="w-4 h-4" />
+          </button>
+          <button onClick={onDelete} className="p-1.5 rounded-lg" style={{ color: '#ef4444' }} title="删除成员">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* 折叠区域 - 模型更换 + 上下文压缩 */}
+      {!collapsed && (
+        <div className="px-3 pb-2">
+          {/* 模型更换按钮 - 可点击 */}
+          <button
+            onClick={onChangeModel}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-2"
+            style={{ background: 'rgba(0, 0, 0, 0.04)' }}
+          >
+            <span className="text-base">{getModelLogo(modelName)}</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{modelName}</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{providerName}</span>
+            <span className="text-[10px] ml-auto" style={{ color: 'var(--text-muted)' }}>模型更换 ▼</span>
+          </button>
+
+          {/* 上下文压缩 */}
+          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
+            <Minimize2 className="w-3 h-3 shrink-0" style={{ color: 'var(--text-muted)' }} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>上下文</span>
+                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                  {contextUsage ? `${(totalTokens / 1000).toFixed(1)}K tokens` : `${totalMessages}条消息`}
+                </span>
+              </div>
+              {contextUsage && (
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.08)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${usedPercent}%`, background: usedPercent > 80 ? '#ef4444' : usedPercent > 50 ? '#f59e0b' : '#22c55e' }} />
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onCompressContext}
+              disabled={compressing || sessionsCount === 0}
+              className="px-2 py-1 rounded text-[9px] font-medium shrink-0"
+              style={{ background: sessionsCount === 0 ? 'rgba(0,0,0,0.05)' : 'rgba(239,68,68,0.1)', color: sessionsCount === 0 ? 'var(--text-muted)' : '#ef4444' }}
+            >
+              {compressing ? '压缩中...' : '压缩'}
+            </button>
+          </div>
+          {channels.length > 0 && (
+            <p className="text-[9px] mt-1.5 px-1" style={{ color: 'var(--text-muted)' }}>已连接: {channels.join(', ')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// 头像选择对话框 - 支持预设和自定义上传
+function AvatarSelectorDialog({
+  agent,
+  currentAvatarId,
+  onClose,
+  onSelect,
+}: {
+  agent: Agent;
+  currentAvatarId?: string;
+  onClose: () => void;
+  onSelect: (avatarId: string) => void;
+}) {
+  const [selected, setSelected] = useState(currentAvatarId || PRESET_AVATARS[0].id);
+  const [customPreview, setCustomPreview] = useState<string | null>(
+    currentAvatarId?.startsWith('custom:') ? currentAvatarId.replace('custom:', '') : null
+  );
+  const [isCustomSelected, setIsCustomSelected] = useState(currentAvatarId?.startsWith('custom:') || false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      toast.error('请选择图片文件');
+      return;
+    }
+    
+    // 验证文件大小（最大 500KB）
+    if (file.size > 500 * 1024) {
+      toast.error('图片大小不能超过 500KB');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setCustomPreview(dataUrl);
+      setIsCustomSelected(true);
+      setSelected('custom');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCustom = () => {
+    setCustomPreview(null);
+    setIsCustomSelected(false);
+    setSelected(PRESET_AVATARS[0].id);
+  };
+
+  const handleApply = () => {
+    if (isCustomSelected && customPreview) {
+      onSelect(`custom:${customPreview}`);
+    } else if (selected && selected !== currentAvatarId) {
+      onSelect(selected);
+    }
+    onClose();
+  };
+
+  const isSelected = (id: string) => !isCustomSelected && selected === id;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="w-full max-w-md rounded-2xl overflow-hidden"
+        style={{ 
+          background: '#ffffff', 
+          border: '1px solid rgba(0,0,0,0.1)', 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)' 
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 头部 */}
+        <div className="relative px-6 pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 100%)' }}>
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-lg" style={{ color: '#6b7280' }}>
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: '#000' }}>
+              <Image className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: '#111827' }}>更换头像</h2>
+              <p className="text-[11px]" style={{ color: '#6b7280' }}>为 {agent.name} 选择一个新头像</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 头像网格 */}
+        <div className="p-6">
+          <p className="text-[11px] font-medium mb-3" style={{ color: '#6b7280' }}>预设头像</p>
+          <div className="grid grid-cols-5 gap-3 mb-4">
+            {PRESET_AVATARS.map((avatar) => (
+              <button
+                key={avatar.id}
+                onClick={() => { setSelected(avatar.id); setIsCustomSelected(false); }}
+                className={cn(
+                  'relative w-full aspect-square rounded-xl overflow-hidden',
+                  isSelected(avatar.id) ? 'ring-2 ring-offset-2' : ''
+                )}
+                style={{ 
+                  background: isSelected(avatar.id) ? 'rgba(0,0,0,0.05)' : 'transparent'
+                }}
+                title={avatar.name}
+              >
+                <img src={avatar.src} alt={avatar.name} className="w-full h-full object-cover" />
+                {isSelected(avatar.id) && (
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-black" />
+                    </div>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          {/* 自定义上传区域 */}
+          <p className="text-[11px] font-medium mb-3" style={{ color: '#6b7280' }}>自定义头像</p>
+          <div className="grid grid-cols-5 gap-3">
+            {/* 自定义头像预览 */}
+            <div
+              className={cn(
+                'relative w-full aspect-square rounded-xl overflow-hidden cursor-pointer',
+                isCustomSelected 
+                  ? 'ring-2 ring-offset-2 scale-105' 
+                  : 'hover:scale-105 hover:shadow-md'
+              )}
+              style={{ 
+                background: '#f3f4f6'
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {customPreview ? (
+                <>
+                  <img src={customPreview} alt="自定义头像" className="w-full h-full object-cover" />
+                  {isCustomSelected && (
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-black" />
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleRemoveCustom(); }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                    title="移除"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  <Plus className="w-6 h-6" style={{ color: '#9ca3af' }} />
+                  <span className="text-[9px] mt-1" style={{ color: '#9ca3af' }}>上传</span>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+          <p className="text-[10px] mt-2" style={{ color: '#9ca3af' }}>支持 JPG、PNG、GIF，建议尺寸 200x200，最大 500KB</p>
+        </div>
+
+        {/* 底部按钮 */}
+        <div className="px-6 pb-6 flex gap-2">
+          <button 
+            onClick={onClose} 
+            className="flex-1 h-10 rounded-xl text-[12px] font-medium"
+            style={{ background: '#f3f4f6', border: '1px solid rgba(0,0,0,0.08)', color: '#6b7280' }}
+          >
+            取消
+          </button>
+          <button 
+            onClick={handleApply}
+            disabled={(isCustomSelected && customPreview ? selected === currentAvatarId?.replace('custom:', '') : selected === currentAvatarId) || (!isCustomSelected && !selected)}
+            className="flex-1 h-10 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2"
+            style={{ 
+              background: (isCustomSelected ? true : selected !== currentAvatarId) ? '#000' : '#f3f4f6',
+              color: (isCustomSelected ? true : selected !== currentAvatarId) ? '#fff' : '#9ca3af',
+              opacity: (isCustomSelected ? true : selected !== currentAvatarId) ? 1 : 0.5,
+              cursor: (isCustomSelected ? true : selected !== currentAvatarId) ? 'pointer' : 'not-allowed'
+            }}
+          >
+            应用头像
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 模型选择对话框 - 直接读取 Provider 账户的实际配置
+function ModelSelectorDialog({
+  agent,
+  currentModel,
+  providerAccounts,
+  onClose,
+  onSelect,
+}: {
+  agent: Agent;
+  currentModel: string;
+  providerAccounts: { id: string; label: string; vendorId: string }[];
+  onClose: () => void;
+  onSelect: (providerAccountId: string, modelRef: string) => void;
+}) {
+  const [selectedProvider, setSelectedProvider] = useState(agent.providerAccountId || providerAccounts[0]?.id || '');
+  const [selectedModel, setSelectedModel] = useState(currentModel);
+  const [customModelInput, setCustomModelInput] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const dialogProviderAccounts = useProviderStore((s) => s.accounts);
+  const selectedProviderAccount = dialogProviderAccounts.find((p) => p.id === selectedProvider);
+  
+  // 直接从 Provider 账户配置读取模型列表
+  const configuredModels = useMemo(() => {
+    if (!selectedProviderAccount) return [];
+    const models: string[] = [];
+    // 主模型
+    if (selectedProviderAccount.model) {
+      models.push(selectedProviderAccount.model);
+    }
+    // 备用模型
+    if (selectedProviderAccount.fallbackModels && selectedProviderAccount.fallbackModels.length > 0) {
+      models.push(...selectedProviderAccount.fallbackModels);
+    }
+    // 去除重复
+    return [...new Set(models)];
+  }, [selectedProviderAccount]);
+
+  const hasConfiguredModels = configuredModels.length > 0;
+
+  const handleApply = async () => {
+    const modelToUse = showCustomInput ? customModelInput : selectedModel;
+    if (!modelToUse) return;
+    setSaving(true);
+    try {
+      await onSelect(selectedProvider, modelToUse);
+      toast.success('模型已更换');
+      onClose();
+    } catch {
+      toast.error('模型更换失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleProviderChange = (providerId: string) => {
+    setSelectedProvider(providerId);
+    setSelectedModel('');
+    setCustomModelInput('');
+    setShowCustomInput(false);
+  };
+
+  const handleModelSelect = (model: string) => {
+    setSelectedModel(model);
+    setShowCustomInput(false);
+    setCustomModelInput('');
+  };
+
+  const handleCustomToggle = () => {
+    setShowCustomInput(!showCustomInput);
+    if (!showCustomInput) {
+      setSelectedModel('');
+      setCustomModelInput('');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="w-full max-w-md rounded-2xl overflow-hidden"
+        style={{ 
+          background: '#ffffff', 
+          border: '1px solid rgba(0,0,0,0.1)', 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)' 
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 头部 */}
+        <div className="relative px-6 pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 100%)' }}>
+          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-lg" style={{ color: '#6b7280' }}>
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: '#000' }}>
+              <Cog className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: '#111827' }}>模型更换</h2>
+              <p className="text-[11px]" style={{ color: '#6b7280' }}>为 {agent.name} 选择模型</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 内容 */}
+        <div className="p-6 space-y-4">
+          {/* 提供商选择 */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium" style={{ color: '#6b7280' }}>选择提供商</label>
+            <div className="flex flex-wrap gap-2">
+              {providerAccounts.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => handleProviderChange(provider.id)}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-medium"
+                  style={{ 
+                    background: selectedProvider === provider.id ? '#000' : '#f3f4f6',
+                    color: selectedProvider === provider.id ? '#fff' : '#6b7280'
+                  }}
+                >
+                  {provider.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 模型选择 - 直接使用 Provider 账户配置的模型 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-medium" style={{ color: '#6b7280' }}>
+                选择模型
+                {selectedProviderAccount && (
+                  <span className="ml-1 text-[10px]" style={{ color: '#9ca3af' }}>
+                    (来自 {selectedProviderAccount.label})
+                  </span>
+                )}
+              </label>
+              <button
+                onClick={handleCustomToggle}
+                className="text-[10px] px-2 py-0.5 rounded"
+                style={{ 
+                  background: showCustomInput ? '#000' : 'rgba(0,0,0,0.06)',
+                  color: showCustomInput ? '#fff' : '#6b7280'
+                }}
+              >
+                {showCustomInput ? '返回列表' : '手动输入'}
+              </button>
+            </div>
+            
+            {showCustomInput ? (
+              /* 手动输入模式 */
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={customModelInput}
+                  onChange={(e) => setCustomModelInput(e.target.value)}
+                  placeholder={selectedProviderAccount?.vendorId ? `${selectedProviderAccount.vendorId}/model-id` : '输入模型 ID'}
+                  className="w-full px-3 py-2 rounded-lg text-[12px] outline-none"
+                  style={{ background: '#f9fafb', border: '1px solid rgba(0,0,0,0.1)', color: '#111827' }}
+                />
+                <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                  格式: {selectedProviderAccount?.vendorId || 'provider'}/model-id
+                </p>
+              </div>
+            ) : (
+              /* 直接使用 Provider 配置的模型列表 */
+              <div className="max-h-60 overflow-y-auto">
+                {!hasConfiguredModels ? (
+                  <div className="text-center py-8 px-4">
+                    <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.06)' }}>
+                      <Cog className="w-5 h-5" style={{ color: '#9ca3af' }} />
+                    </div>
+                    <p className="text-[12px] font-medium mb-1" style={{ color: '#6b7280' }}>暂无可用模型</p>
+                    <p className="text-[10px] mb-3" style={{ color: '#9ca3af' }}>
+                      请先在「AI 模型服务商」设置中配置模型
+                    </p>
+                    <button
+                      onClick={handleCustomToggle}
+                      className="text-[11px] px-3 py-1.5 rounded-lg"
+                      style={{ background: '#000', color: '#fff' }}
+                    >
+                      手动输入模型
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-1">
+                    {configuredModels.map((model, index) => {
+                      const isSelected = selectedModel === model;
+                      const isCurrentModel = currentModel === model;
+                      return (
+                        <button
+                          key={`${model}-${index}`}
+                          onClick={() => handleModelSelect(model)}
+                          className="px-3 py-2 rounded-lg text-left text-[12px] flex items-center gap-2"
+                          style={{ 
+                            background: isSelected ? 'rgba(0,0,0,0.08)' : 'transparent',
+                            color: isSelected ? '#111827' : '#6b7280',
+                            border: isSelected ? '1px solid rgba(0,0,0,0.2)' : '1px solid transparent'
+                          }}
+                        >
+                          <span className="text-sm">{getModelLogo(model)}</span>
+                          <span className="truncate flex-1 font-mono text-[11px]">{model}</span>
+                          {isCurrentModel && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}>
+                              当前
+                            </span>
+                          )}
+                          {isSelected && !isCurrentModel && (
+                            <span style={{ color: '#22c55e' }}>✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 底部按钮 */}
+        <div className="px-6 pb-6 flex gap-2">
+          <button 
+            onClick={onClose} 
+            className="flex-1 h-10 rounded-xl text-[12px] font-medium"
+            style={{ background: '#f3f4f6', border: '1px solid rgba(0,0,0,0.08)', color: '#6b7280' }}
+          >
+            取消
+          </button>
+          <button 
+            onClick={handleApply}
+            disabled={saving || (!selectedModel && !customModelInput)}
+            className="flex-1 h-10 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2"
+            style={{ 
+              background: (selectedModel || customModelInput) ? '#000' : '#f3f4f6',
+              color: (selectedModel || customModelInput) ? '#fff' : '#9ca3af',
+              opacity: saving ? 0.7 : 1
+            }}
+          >
+            {saving ? '保存中...' : '确认更换'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 招聘新成员卡片 - 紧凑高度
+const RecruitCard = ({ onClick }: { onClick: () => void }) => (
+  <button onClick={onClick} className="relative rounded-2xl overflow-hidden min-h-[120px] flex items-center justify-center" style={{ background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(20px)', border: '2px dashed rgba(0, 0, 0, 0.15)' }}>
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center" style={{ background: 'rgba(0, 0, 0, 0.06)' }}>
+        <Plus className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+      </div>
+      <p className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>招聘新成员</p>
+      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>加入新的 AI Agent</p>
+    </div>
+  </button>
+);
+
+// 全局统计卡片
+const GlobalStatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <div className="relative overflow-hidden rounded-xl p-4" style={{ background: 'rgba(255, 255, 255, 0.5)', backdropFilter: 'blur(16px)', border: '1px solid rgba(0, 0, 0, 0.06)' }}>
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{label}</p>
+        <p className="text-lg font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>{value}</p>
+      </div>
+      <div className="p-2 rounded-lg" style={{ background: 'rgba(0, 0, 0, 0.06)' }}>
+        <div style={{ color: 'var(--text-secondary)' }}>{icon}</div>
       </div>
     </div>
   </div>
 );
 
-// 类型定义
-type Agent = NonNullable<ReturnType<typeof useAgentsStore.getState>['agents']>[number];
-
-// Agent 状态卡片组件 - 简约设计，始终展开
-const AgentCard = ({ 
-  agent, 
-  runtime,
-}: { 
-  agent: Agent; 
-  runtime?: AgentRuntimeInfo;
-}) => {
-  const status = runtime?.status ?? 'offline';
-  
-  const statusConfig = {
-    idle: { color: 'var(--success)', label: '空闲' },
-    busy: { color: 'var(--accent-blue)', label: '忙碌' },
-    error: { color: 'var(--error)', label: '错误' },
-    offline: { color: 'var(--text-muted)', label: '离线' },
-  };
-  
-  const config = statusConfig[status];
-  const contextPercent = runtime ? Math.round((runtime.contextTokens / runtime.maxTokens) * 100) : 0;
-  
-  return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{ 
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-      }}
-    >
-      {/* 卡片头部 - 始终显示详情 */}
-      <div className="px-3 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Agent 头像 */}
-          <div 
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white text-sm font-medium"
-            style={{ background: 'var(--accent-blue)' }}
-          >
-            {agent.name.charAt(0).toUpperCase()}
-          </div>
-          
-          <div className="text-left">
-            <h3 className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-              {agent.name}
-            </h3>
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              {agent.id}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <span 
-            className="text-[10px] px-2 py-0.5 rounded-full"
-            style={{ 
-              background: status === 'idle' ? 'var(--success-bg)' 
-                : status === 'busy' ? 'var(--accent-blue-light)'
-                : status === 'error' ? 'var(--error-bg)'
-                : 'var(--secondary)',
-              color: config.color,
-            }}
-          >
-            {config.label}
-          </span>
-        </div>
-      </div>
-      
-      {/* 详情内容 - 始终展开 */}
-      {runtime && (
-        <div className="px-3 pb-3 pt-1 border-t space-y-3" style={{ borderColor: 'var(--border)' }}>
-          {/* 上下文使用进度条 */}
-          <div className="mt-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                上下文使用
-              </span>
-              <span className="text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>
-                {runtime.contextTokens.toLocaleString()} / {runtime.maxTokens.toLocaleString()}
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--secondary)' }}>
-              <div 
-                className="h-full rounded-full transition-all"
-                style={{ 
-                  width: `${contextPercent}%`,
-                  background: contextPercent > 80 ? 'var(--error)' 
-                    : contextPercent > 60 ? 'var(--success)'
-                    : 'var(--accent-blue)',
-                }}
-              />
-            </div>
-          </div>
-          
-          {/* 详细指标网格 */}
-          <div className="grid grid-cols-2 gap-2">
-            <MetricBox label="消息数" value={runtime.messageCount.toString()} />
-            <MetricBox label="平均响应" value={`${Math.round(runtime.avgResponseMs)}ms`} />
-            <MetricBox label="会话数" value={runtime.sessionsHandled.toString()} />
-            <MetricBox label="运行时长" value={formatUptime(runtime.uptime)} />
-            {runtime.errorCount > 0 && (
-              <MetricBox label="错误数" value={runtime.errorCount.toString()} isError />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// 指标显示组件
-function MetricBox({ label, value, isError = false }: { label: string; value: string; isError?: boolean }) {
-  return (
-    <div 
-      className="p-2 rounded-lg"
-      style={{ background: isError ? 'var(--error-bg)' : 'var(--secondary)' }}
-    >
-      <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="text-[12px] font-semibold" style={{ color: isError ? 'var(--error)' : 'var(--text-primary)' }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-// 格式化运行时长
-function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-  return `${Math.floor(seconds / 86400)}d`;
-}
-
 export function Studio() {
-  const { t } = useTranslation();
+  const navigate = useNavigate();
   const agents = useAgentsStore((s) => s.agents);
+  const channelOwners = useAgentsStore((s) => s.channelOwners);
+  const { createAgent, deleteAgent, fetchAgents } = useAgentsStore();
   const gatewayStatus = useGatewayStore((s) => s.status);
-  const sessions = useChatStore((s) => s.sessions);
-  const [agentRuntimeInfo, setAgentRuntimeInfo] = useState<AgentRuntimeInfo[]>([]);
-  const [globalStats, setGlobalStats] = useState<GlobalStats>({
-    totalSessions: 0,
-    activeAgents: 0,
-    totalRequests: 0,
-    avgResponseTime: 0,
-    totalTokens: 0,
-    successRate: 100,
-  });
+  const chatSessions = useChatStore((s) => s.sessions);
+  const providerAccounts = useProviderStore((s) => s.accounts);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // 模拟获取 Agent 运行时数据
-  useEffect(() => {
-    if (!agents.length) return;
-
-    const mockRuntimeInfo: AgentRuntimeInfo[] = agents.map((agent) => {
-      const messageCount = Math.floor(Math.random() * 100) + 10;
-      const maxTokens = 128000;
-      const contextRatio = Math.random() * 0.8 + 0.1;
-      const contextTokens = Math.floor(maxTokens * contextRatio);
-      
-      return {
-        agentId: agent.id,
-        status: Math.random() > 0.8 ? 'busy' : 'idle',
-        sessionsHandled: Math.floor(Math.random() * 50),
-        lastActivity: Date.now() - Math.random() * 3600000,
-        contextTokens,
-        maxTokens,
-        messageCount,
-        uptime: Math.floor(Math.random() * 86400),
-        errorCount: Math.floor(Math.random() * 5),
-        avgResponseMs: Math.floor(Math.random() * 800) + 100,
-      };
-    });
-
-    setAgentRuntimeInfo(mockRuntimeInfo);
-
-    const totalTokens = mockRuntimeInfo.reduce((sum, a) => sum + a.contextTokens, 0);
-    setGlobalStats({
-      totalSessions: sessions.length || 12,
-      activeAgents: mockRuntimeInfo.filter((a) => a.status === 'busy').length,
-      totalRequests: Math.floor(Math.random() * 1000) + 500,
-      avgResponseTime: Math.floor(Math.random() * 500) + 100,
-      totalTokens,
-      successRate: 95 + Math.floor(Math.random() * 5),
-    });
-  }, [agents, sessions.length]);
-
-  // 每 5 秒刷新一次
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAgentRuntimeInfo((prev) =>
-        prev.map((agent) => {
-          const contextChange = (Math.random() - 0.5) * 2000;
-          const newTokens = Math.max(1000, Math.min(agent.maxTokens, agent.contextTokens + contextChange));
-          
-          return {
-            ...agent,
-            status: Math.random() > 0.9 ? 'busy' : 'idle',
-            contextTokens: Math.floor(newTokens),
-            messageCount: agent.messageCount + (agent.status === 'busy' ? 1 : 0),
-            avgResponseMs: Math.max(50, agent.avgResponseMs + (Math.random() - 0.5) * 50),
-          };
-        }),
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const [showRecruitDialog, setShowRecruitDialog] = useState(false);
+  const [deleteConfirmAgent, setDeleteConfirmAgent] = useState<Agent | null>(null);
+  const [avatarSelectorAgent, setAvatarSelectorAgent] = useState<Agent | null>(null);
+  const [modelSelectorAgent, setModelSelectorAgent] = useState<Agent | null>(null);
+  const [compressingSessions, setCompressingSessions] = useState<Record<string, boolean>>({});
+  const [agentMessages, setAgentMessages] = useState<Record<string, number>>({});
+  const [agentContextUsage, setAgentContextUsage] = useState<Record<string, ContextUsage | null>>({});
 
   const isGatewayRunning = gatewayStatus.state === 'running';
 
-  return (
-    <div
-      className="h-full overflow-y-auto"
-      style={{ background: 'var(--background)' }}
-    >
-      {/* 页面容器 */}
-      <div className="max-w-5xl mx-auto p-5">
-        {/* 页面标题区域 - 简约黑白灰 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-              工作室
-            </h1>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Agent 运行状态
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", isGatewayRunning ? "bg-success" : "bg-error")} />
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              {isGatewayRunning ? '已连接' : '未连接'}
-            </span>
-          </div>
-        </div>
+  const providerAccountsList = useMemo(() => {
+    return providerAccounts.map((acc) => ({ id: acc.id, label: acc.label, vendorId: acc.vendorId }));
+  }, [providerAccounts]);
 
-        {/* 连接状态警告 */}
+  const agentStats = useMemo(() => {
+    const stats: Record<string, { sessionsCount: number; sessions: { key: string; lastActivity: number }[]; channels: string[] }> = {};
+    for (const agent of agents) {
+      const agentSessions = chatSessions.filter((s) => s.key.startsWith(`agent:${agent.id}:`)).map((s) => ({ key: s.key, lastActivity: s.updatedAt || 0 }));
+      const agentChannels = Object.entries(channelOwners).filter(([, ownerAgentId]) => ownerAgentId === agent.id).map(([channelType]) => channelType);
+      stats[agent.id] = { sessionsCount: agentSessions.length, sessions: agentSessions, channels: agentChannels };
+    }
+    return stats;
+  }, [agents, chatSessions, channelOwners, refreshKey]);
+
+  // 性能优化：并行加载所有数据
+  useEffect(() => {
+    let cancelled = false;
+    
+    const loadMessageCounts = async () => {
+      // 并行加载所有 agent 的数据
+      const loadAgentData = async (agent: Agent) => {
+        const stats = agentStats[agent.id];
+        if (!stats || stats.sessionsCount === 0) {
+          return { agentId: agent.id, total: 0, usage: null };
+        }
+        
+        // 并行加载所有会话数据
+        const sessionPromises = stats.sessions.map(async (session) => {
+          const [count, usage] = await Promise.all([
+            getSessionMessageCount(session.key),
+            getSessionContextUsage(session.key),
+          ]);
+          return { count, usage };
+        });
+        
+        const sessionResults = await Promise.all(sessionPromises);
+        
+        let total = 0;
+        let totalTokens = 0;
+        let totalChars = 0;
+        let contextLimit = 128000;
+        let maxUsedPercent = 0;
+        
+        for (const { count, usage } of sessionResults) {
+          total += count;
+          if (usage) {
+            totalTokens += usage.totalTokens;
+            totalChars += usage.totalChars;
+            if (usage.usedPercent > maxUsedPercent) {
+              maxUsedPercent = usage.usedPercent;
+              contextLimit = usage.contextLimit;
+            }
+          }
+        }
+        
+        return {
+          agentId: agent.id,
+          total,
+          usage: { messageCount: total, totalChars, totalTokens, contextLimit, usedPercent: maxUsedPercent },
+        };
+      };
+      
+      // 并行处理所有 agent
+      const results = await Promise.all(agents.map(loadAgentData));
+      
+      if (cancelled) return;
+      
+      const counts: Record<string, number> = {};
+      const contextUsages: Record<string, ContextUsage | null> = {};
+      
+      for (const result of results) {
+        counts[result.agentId] = result.total;
+        contextUsages[result.agentId] = result.usage;
+      }
+      
+      setAgentMessages(counts);
+      setAgentContextUsage(contextUsages);
+    };
+    
+    if (agents.length > 0) { void loadMessageCounts(); }
+    
+    return () => { cancelled = true; };
+  }, [agents, agentStats, refreshKey]);
+
+  const globalStats = useMemo(() => {
+    const activeAgents = Object.values(agentStats).filter((s) => s.sessionsCount > 0).length;
+    const totalChannels = new Set(Object.values(agentStats).flatMap((s) => s.channels)).size;
+    return { totalAgents: agents.length, activeAgents, totalSessions: chatSessions.length, totalChannels, totalMessages: Object.values(agentMessages).reduce((a, b) => a + b, 0) };
+  }, [agents.length, agentStats, chatSessions.length, agentMessages]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    void fetchAgents();
+    void useChatStore.getState().loadSessions();
+  }, [fetchAgents]);
+
+  useEffect(() => {
+    const interval = setInterval(() => { void useChatStore.getState().loadSessions(); }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCreateAgent = async (name: string, options: { inheritWorkspace: boolean }) => {
+    await createAgent(name, options);
+    await fetchAgents();
+    setRefreshKey((k) => k + 1);
+  };
+
+  // 更新 Agent 头像
+  const handleUpdateAvatar = async (agentId: string, avatarId: string) => {
+    try {
+      await hostApiFetch(`/api/agents/${encodeURIComponent(agentId)}/avatar`, {
+        method: 'PUT',
+        body: JSON.stringify({ avatarId }),
+      });
+      toast.success('头像已更新');
+      await fetchAgents();
+      setRefreshKey((k) => k + 1);
+    } catch {
+      toast.error('头像更新失败');
+    }
+  };
+
+  // 更换 Agent 模型
+  const handleUpdateModel = async (agentId: string, providerAccountId: string, modelRef: string) => {
+    try {
+      await hostApiFetch(`/api/agents/${encodeURIComponent(agentId)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ providerAccountId, modelRef }),
+      });
+      toast.success('模型已更换');
+      await fetchAgents();
+      setRefreshKey((k) => k + 1);
+    } catch {
+      toast.error('模型更换失败');
+    }
+  };
+
+  const handleDeleteAgent = async () => {
+    if (!deleteConfirmAgent) return;
+    try {
+      await deleteAgent(deleteConfirmAgent.id);
+      toast.success(`${deleteConfirmAgent.name} 已移除`);
+      await fetchAgents();
+      setRefreshKey((k) => k + 1);
+    } catch {
+      toast.error('删除失败');
+    } finally {
+      setDeleteConfirmAgent(null);
+    }
+  };
+
+  const handleCompressContext = async (agent: Agent) => {
+    const stats = agentStats[agent.id];
+    if (!stats || stats.sessionsCount === 0) { toast.error('该 Agent 没有会话'); return; }
+    setCompressingSessions((prev) => ({ ...prev, [agent.id]: true }));
+    try {
+      let totalRemoved = 0;
+      for (const session of stats.sessions) {
+        const result = await compressSessionContext(session.key, 20);
+        if (result.success && result.removedCount) { totalRemoved += result.removedCount; }
+      }
+      if (totalRemoved > 0) {
+        toast.success(`已压缩 ${totalRemoved} 条历史消息`);
+        const count = await getSessionMessageCount(stats.sessions[0].key);
+        setAgentMessages((prev) => ({ ...prev, [agent.id]: count }));
+      } else {
+        toast.info('无需压缩的会话');
+      }
+    } catch {
+      toast.error('压缩失败');
+    } finally {
+      setCompressingSessions((prev) => ({ ...prev, [agent.id]: false }));
+    }
+  };
+
+  return (
+    <div className="h-full overflow-y-auto" style={{ background: 'var(--background)' }}>
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader
+          title={<><span style={{ fontFamily: 'Georgia, serif' }}>Agents</span> 档案室</>}
+          description={`Agent 个人档案 · ${agents.length} 个成员`}
+          actions={
+            <div className="flex items-center gap-3">
+            <button onClick={handleRefresh} className="p-2 rounded-lg" style={{ color: 'var(--text-muted)' }} title="刷新数据"><RefreshCw className="w-4 h-4" /></button>
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full", isGatewayRunning ? "bg-green-500" : "bg-gray-400")} />
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{isGatewayRunning ? '已连接' : '未连接'}</span>
+            </div>
+          </div>
+          }
+        />
+
         {!isGatewayRunning && (
-          <div
-            className="mb-4 p-3 rounded-xl flex items-center gap-2"
-            style={{ background: 'var(--error-bg)' }}
-          >
-            <AlertCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--error)' }} />
-            <span className="text-[11px]" style={{ color: 'var(--error)' }}>
-              Gateway 未连接，当前显示模拟数据
-            </span>
+          <div className="mb-5 p-3 rounded-xl flex items-center gap-2" style={{ background: 'rgba(0, 0, 0, 0.04)', border: '1px solid rgba(0, 0, 0, 0.08)' }}>
+            <AlertCircle className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Gateway 未连接，显示最近同步的数据</span>
           </div>
         )}
 
-        {/* 统计卡片行 - 简约设计 */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-          <MiniStatCard label="总会话数" value={globalStats.totalSessions.toString()} />
-          <MiniStatCard label="活跃" value={globalStats.activeAgents.toString()} />
-          <MiniStatCard label="请求数" value={globalStats.totalRequests.toString()} />
-          <MiniStatCard label="响应" value={`${globalStats.avgResponseTime}ms`} />
-          <MiniStatCard label="Token" value={globalStats.totalTokens >= 1000 ? `${(globalStats.totalTokens / 1000).toFixed(0)}K` : globalStats.totalTokens.toString()} />
-          <MiniStatCard label="成功率" value={`${globalStats.successRate}%`} />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <GlobalStatCard icon={<Bot className="w-5 h-5" />} label="Agent 总数" value={globalStats.totalAgents.toString()} />
+          <GlobalStatCard icon={<Activity className="w-5 h-5" />} label="活跃 Agent" value={globalStats.activeAgents.toString()} />
+          <GlobalStatCard icon={<MessageSquare className="w-5 h-5" />} label="总会话数" value={globalStats.totalSessions.toString()} />
+          <GlobalStatCard icon={<Zap className="w-5 h-5" />} label="总消息数" value={globalStats.totalMessages.toString()} />
+          <GlobalStatCard icon={<Settings className="w-5 h-5" />} label="已配置渠道" value={globalStats.totalChannels.toString()} />
         </div>
 
-        {/* Agent 状态列表 */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              Agent 列表
-            </span>
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              {agents.length} 个
-            </span>
-          </div>
-
-          {agents.length === 0 ? (
-            <div className="p-8 text-center" style={{ background: 'var(--secondary)', borderRadius: '12px' }}>
-              <Bot className="h-8 w-8 mx-auto mb-2" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>暂无 Agent</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {agents.map((agent) => {
-                const runtime = agentRuntimeInfo.find((r) => r.agentId === agent.id);
-                return (
-                  <AgentCard
-                    key={agent.id}
-                    agent={agent}
-                    runtime={runtime}
-                  />
-                );
-              })}
-            </div>
-          )}
+        {/* Agent 卡片网格 + 招聘卡片（最后） */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {agents.map((agent) => {
+            const stats = agentStats[agent.id] || { sessionsCount: 0, sessions: [], channels: [] };
+            return (
+              <AgentProfileCard
+                key={agent.id}
+                agent={agent}
+                sessionsCount={stats.sessionsCount}
+                totalMessages={agentMessages[agent.id] || 0}
+                channels={stats.channels}
+                navigate={navigate}
+                onDelete={() => setDeleteConfirmAgent(agent)}
+                onCompressContext={() => handleCompressContext(agent)}
+                onChangeAvatar={() => setAvatarSelectorAgent(agent)}
+                onChangeModel={() => setModelSelectorAgent(agent)}
+                compressing={compressingSessions[agent.id] || false}
+                contextUsage={agentContextUsage[agent.id]}
+              />
+            );
+          })}
+          <RecruitCard onClick={() => setShowRecruitDialog(true)} />
         </div>
       </div>
-    </div>
-  );
-}
 
-// 简约统计卡片
-function MiniStatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div 
-      className="p-3 rounded-xl"
-      style={{ background: 'var(--secondary)' }}
-    >
-      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>{value}</p>
+      {showRecruitDialog && <RecruitDialog onClose={() => setShowRecruitDialog(false)} onCreate={handleCreateAgent} />}
+      {deleteConfirmAgent && <DeleteConfirmDialog agentName={deleteConfirmAgent.name} onConfirm={() => void handleDeleteAgent()} onCancel={() => setDeleteConfirmAgent(null)} />}
+      {avatarSelectorAgent && (
+        <AvatarSelectorDialog
+          agent={avatarSelectorAgent}
+          currentAvatarId={(avatarSelectorAgent as any).avatarId}
+          onClose={() => setAvatarSelectorAgent(null)}
+          onSelect={(avatarId) => handleUpdateAvatar(avatarSelectorAgent.id, avatarId)}
+        />
+      )}
+      {modelSelectorAgent && (
+        <ModelSelectorDialog
+          agent={modelSelectorAgent}
+          currentModel={modelSelectorAgent.modelRef || ''}
+          providerAccounts={providerAccountsList}
+          onClose={() => setModelSelectorAgent(null)}
+          onSelect={(providerAccountId, modelRef) => handleUpdateModel(modelSelectorAgent.id, providerAccountId, modelRef)}
+        />
+      )}
     </div>
   );
 }

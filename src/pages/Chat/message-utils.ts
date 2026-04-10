@@ -83,16 +83,18 @@ export function extractThinking(message: RawMessage | unknown): string | null {
     for (const block of content as ContentBlock[]) {
       // type: 'thinking' with thinking field (Claude/Anthropic format)
       if (block.type === 'thinking') {
-        const thinkingText = (block as Record<string, unknown>).thinking as string | undefined
-          || (block as Record<string, unknown>).text as string | undefined;
+        const blockAny = block as unknown as Record<string, unknown>;
+        const thinkingText = blockAny.thinking as string | undefined
+          || blockAny.text as string | undefined;
         if (thinkingText && thinkingText.trim()) {
           parts.push(thinkingText.trim());
         }
       }
       // type: 'reasoning' with reasoning/text field (some models)
-      if (block.type === 'reasoning') {
-        const reasoningText = (block as Record<string, unknown>).reasoning as string | undefined
-          || (block as Record<string, unknown>).text as string | undefined;
+      const blockAny = block as unknown as Record<string, unknown>;
+      if (blockAny.type === 'reasoning') {
+        const reasoningText = blockAny.reasoning as string | undefined
+          || blockAny.text as string | undefined;
         if (reasoningText && reasoningText.trim()) {
           parts.push(reasoningText.trim());
         }
@@ -112,7 +114,8 @@ export function extractThinking(message: RawMessage | unknown): string | null {
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
       // Check for reasoning field (some models use this)
-      const reasoning = (block as Record<string, unknown>).reasoning as string | undefined;
+      const blockAny = block as unknown as Record<string, unknown>;
+      const reasoning = blockAny.reasoning as string | undefined;
       if (reasoning && typeof reasoning === 'string' && reasoning.trim()) {
         return reasoning.trim();
       }

@@ -9,6 +9,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import { subscribeHostEvent } from '@/lib/host-events';
 import { ChannelConfigModal } from '@/components/channels/ChannelConfigModal';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
   CHANNEL_ICONS,
   CHANNEL_NAMES,
@@ -265,17 +266,11 @@ export function Channels() {
   return (
     <div data-testid="channels-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 shrink-0 gap-4">
-          <div>
-            <h1 className="text-base font-semibold text-foreground mb-1" style={{ color: 'var(--text-primary)' }}>
-              {t('title')}
-            </h1>
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-              {t('subtitle')}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 md:mt-2">
+        <PageHeader
+          title={t('title')}
+          description={t('subtitle')}
+          actions={
+            <div className="flex items-center gap-3 md:mt-1">
             <Button
               variant="outline"
               onClick={handleRefresh}
@@ -286,7 +281,8 @@ export function Channels() {
               {t('refresh')}
             </Button>
           </div>
-        </div>
+          }
+        />
 
         <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2">
           {gatewayStatus.state !== 'running' && (

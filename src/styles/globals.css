@@ -2,84 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== 性能优化：GPU 加速和动画性能 ===== */
+/* ===== 丝滑动画性能优化系统 ===== */
 
-/* 核心 GPU 加速 - 启用 GPU 合成 */
+/* 
+ * 核心原则：动画只使用 transform 和 opacity
+ * 这两个属性不需要重排（reflow），只触发重绘（repaint），
+ * 并且可以利用 GPU 加速，实现 60fps 流畅动画
+ */
+
+/* ===== GPU 加速核心层 ===== */
 .enable-gpu,
 .gpu-accelerated {
-  transform: translateZ(0);
-  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
   backface-visibility: hidden;
   perspective: 1000px;
-  transform: translate3d(0, 0, 0);
+  hardware-accelerated: true;
 }
 
-/* 优化动画性能：只使用 transform 和 opacity */
-.perf-animate,
-.anim-optimized {
+/* ===== 丝滑过渡效果 ===== */
+/* 统一使用弹簧缓动曲线，模拟真实物理效果 */
+.smooth-transition {
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-duration: 200ms;
   will-change: transform, opacity;
-  transform: translateZ(0);
-  pointer-events: none;
 }
 
-/* 优化滚动性能 */
-.perf-scroll {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  contain: strict;
-}
-
-/* 聊天消息区域专用滚动优化 */
-.chat-scroll-area {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: auto;
-  contain: layout style;
-  content-visibility: auto;
-}
-
-/* 优化 flex 布局 */
-.perf-flex {
-  display: flex;
-  contain: layout style;
-}
-
-/* 减少重绘的过渡效果 - 仅使用 GPU 属性 */
-.perf-transition {
-  transition-property: transform, opacity, visibility;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* 优化列表渲染 */
-.list-optimized {
-  contain: content;
-  content-visibility: auto;
-}
-
-/* 减少 paint 区域 */
-.reduce-paint {
-  isolation: isolate;
-  contain: strict;
-}
-
-/* 元素级别的 paint 优化 */
-.paint-optimized {
-  contain: layout style;
+/* 弹性按压效果 */
+.press-effect {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
-
-/* 消息气泡动画优化 */
-.msg-bubble-animate {
-  animation: msg-fade-in 0.15s ease-out forwards;
-  will-change: transform, opacity;
-  transform: translateZ(0);
+.press-effect:active {
+  transform: scale(0.97) translateZ(0);
 }
 
+/* 悬浮弹性效果 */
+.hover-lift {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 200ms ease,
+              border-color 200ms ease;
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: var(--theme-shadow);
+}
+
+/* ===== 丝滑动画关键帧 ===== */
+
+/* 淡入上移（丝滑版） */
+@keyframes smooth-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+/* 淡入缩放（丝滑版） */
+@keyframes smooth-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* 弹性弹入 */
+@keyframes spring-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateZ(0);
+  }
+  60% {
+    transform: scale(1.03) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* 消息气泡（丝滑版） */
 @keyframes msg-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+/* 侧边滑入 */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateZ(0);
+  }
+}
+
+/* 技能列表滑入 */
+@keyframes slide-in-fade {
   from {
     opacity: 0;
     transform: translateY(4px) translateZ(0);
@@ -90,121 +127,100 @@
   }
 }
 
-/* 卡片悬浮动画优化 */
-.card-hover {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.2s ease;
-  will-change: transform;
+/* ===== 丝滑动画类 ===== */
+.smooth-fade-in-up {
+  animation: smooth-fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.smooth-scale-in {
+  animation: smooth-scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.spring-bounce {
+  animation: spring-bounce-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.msg-bubble-animate {
+  animation: msg-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.slide-enter {
+  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 技能列表滑入动画 */
+.animate-slide-in {
+  animation: slide-in-fade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* ===== 滚动性能优化 ===== */
+.perf-scroll,
+.chat-scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* 内容可见性优化 - 视口外内容不渲染 */
+  content-visibility: auto;
+  contain: content;
+}
+
+/* ===== 布局优化 ===== */
+.list-optimized {
+  contain: content;
+  content-visibility: auto;
+}
+
+.isolate-layer {
+  isolation: isolate;
+}
+
+/* ===== 进度条丝滑动画 ===== */
+.progress-bar {
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
+  transform: translateZ(0);
+}
+
+/* ===== 按钮反馈优化 ===== */
+.btn-press {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.btn-press:active {
+  transform: scale(0.97) translateZ(0);
+}
+
+/* ===== 卡片悬浮效果 ===== */
+.card-hover {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms ease;
+  will-change: transform;
+}
 .card-hover:hover {
   transform: translateY(-2px) translateZ(0);
   box-shadow: var(--theme-shadow);
 }
 
-/* 按钮点击反馈优化 */
-.btn-press {
-  transition: transform 0.1s ease;
-  will-change: transform;
+/* ===== 骨架屏动画 ===== */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
-.btn-press:active {
-  transform: scale(0.97) translateZ(0);
-}
-
-/* 工具卡片动画 */
-.tool-card-animate {
-  animation: tool-card-in 0.2s ease-out forwards;
-  will-change: transform, opacity;
-}
-
-@keyframes tool-card-in {
-  from {
-    opacity: 0;
-    transform: translateX(-4px) translateZ(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) translateZ(0);
-  }
-}
-
-/* 进度条动画优化 */
-.progress-bar {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: width;
-  transform: translateZ(0);
-}
-
-/* 淡入淡出动画 */
-.fade-in {
-  animation: fade-in 0.15s ease-out forwards;
-}
-
-.fade-in-fast {
-  animation: fade-in 0.1s ease-out forwards;
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* 滑入动画 */
-.slide-in-up {
-  animation: slide-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
-}
-
-@keyframes slide-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px) translateZ(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) translateZ(0);
-  }
-}
-
-/* 动画帧率优化 */
-@keyframes perf-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes perf-slide-up {
-  from { 
-    opacity: 0;
-    transform: translateY(8px) translateZ(0);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0) translateZ(0);
-  }
-}
-
-@keyframes perf-scale {
-  from { 
-    opacity: 0;
-    transform: scale(0.95) translateZ(0);
-  }
-  to { 
-    opacity: 1;
-    transform: scale(1) translateZ(0);
-  }
-}
-
-.perf-animate-fade {
-  animation: perf-fade 0.2s ease-out forwards;
-}
-
-.perf-animate-slide-up {
-  animation: perf-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.perf-animate-scale {
-  animation: perf-scale 0.2s ease-out forwards;
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @layer base {

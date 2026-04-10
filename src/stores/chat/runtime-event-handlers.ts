@@ -25,13 +25,17 @@ function extractThinkingContent(msg: RawMessage): string | null {
     const parts: string[] = [];
     for (const block of content as ContentBlock[]) {
       if (block.type === 'thinking') {
-        const thinkingText = block.thinking || (block as Record<string, unknown>).text;
+        const blockAsRecord = block as unknown as Record<string, unknown>;
+        const thinkingText = block.thinking || blockAsRecord.text;
         if (thinkingText && typeof thinkingText === 'string' && thinkingText.trim()) {
           parts.push(thinkingText.trim());
         }
       }
-      if (block.type === 'reasoning') {
-        const reasoningText = (block as Record<string, unknown>).reasoning || (block as Record<string, unknown>).text;
+      // Handle 'reasoning' type blocks (some providers use this)
+      const blockType = (block as unknown as Record<string, unknown>).type as string;
+      if (blockType === 'reasoning') {
+        const blockAsRecord = block as unknown as Record<string, unknown>;
+        const reasoningText = blockAsRecord.reasoning || blockAsRecord.text;
         if (reasoningText && typeof reasoningText === 'string' && reasoningText.trim()) {
           parts.push(reasoningText.trim());
         }
@@ -41,9 +45,10 @@ function extractThinkingContent(msg: RawMessage): string | null {
     if (combined.length > 0) return combined;
   }
   // Fallback: check message-level fields
-  const reasoningContent = (msg as Record<string, unknown>).reasoning_content as string | undefined;
+  const msgAsRecord = msg as unknown as Record<string, unknown>;
+  const reasoningContent = msgAsRecord.reasoning_content as string | undefined;
   if (reasoningContent?.trim()) return reasoningContent.trim();
-  const thinking = msg.thinking as string | undefined;
+  const thinking = msgAsRecord.thinking as string | undefined;
   if (thinking?.trim()) return thinking.trim();
   return null;
 }

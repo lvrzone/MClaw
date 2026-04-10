@@ -126,9 +126,19 @@ function App() {
 
   // Redirect to setup wizard if not complete
   useEffect(() => {
-    if (!setupComplete && !skipSetupForE2E && !location.pathname.startsWith('/setup')) {
-      navigate('/setup');
-    }
+    let cancelled = false;
+    // Run after init completes — settings store reads from electron-store on first access,
+    // so we need to wait for the async init to settle before checking setupComplete.
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      if (!setupComplete && !skipSetupForE2E && !location.pathname.startsWith('/setup')) {
+        navigate('/setup');
+      }
+    }, 100);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [setupComplete, skipSetupForE2E, location.pathname, navigate]);
 
   // Listen for navigation events from main process

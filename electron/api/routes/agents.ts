@@ -9,6 +9,7 @@ import {
   resolveAccountIdForAgent,
   updateAgentModel,
   updateAgentName,
+  updateAgentAvatar,
 } from '../../utils/agent-config';
 import { deleteChannelAccountConfig } from '../../utils/channel-config';
 import { syncAgentModelOverrideToRuntime, syncAllProviderAuthToRuntime } from '../../services/providers/provider-runtime-sync';
@@ -178,6 +179,18 @@ export async function handleAgentRoutes(
         const channelType = decodeURIComponent(parts[2]);
         const snapshot = await assignChannelToAgent(agentId, channelType);
         scheduleGatewayReload(ctx, 'assign-channel');
+        sendJson(res, 200, { success: true, ...snapshot });
+      } catch (error) {
+        sendJson(res, 500, { success: false, error: String(error) });
+      }
+      return true;
+    }
+
+    if (parts.length === 2 && parts[1] === 'avatar') {
+      try {
+        const body = await parseJsonBody<{ avatarId?: string }>(req);
+        const agentId = decodeURIComponent(parts[0]);
+        const snapshot = await updateAgentAvatar(agentId, body.avatarId ?? '');
         sendJson(res, 200, { success: true, ...snapshot });
       } catch (error) {
         sendJson(res, 500, { success: false, error: String(error) });
