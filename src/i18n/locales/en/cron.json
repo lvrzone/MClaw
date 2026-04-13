@@ -1,0 +1,137 @@
+{
+    "title": "Scheduled Tasks",
+    "subtitle": "Automate AI workflows with scheduled tasks",
+    "newTask": "New Task",
+    "refresh": "Refresh",
+    "gatewayWarning": "Gateway is not running. Scheduled tasks cannot be managed without an active Gateway.",
+    "stats": {
+        "total": "Total Tasks",
+        "active": "Active",
+        "paused": "Paused",
+        "failed": "Failed"
+    },
+    "empty": {
+        "title": "No scheduled tasks",
+        "description": "Create scheduled tasks to automate AI workflows. Tasks can send messages, run queries, or perform actions at specified times.",
+        "create": "Create Your First Task"
+    },
+    "card": {
+        "runNow": "Run Now",
+        "deleteConfirm": "Are you sure you want to delete this task?",
+        "last": "Last",
+        "next": "Next"
+    },
+    "dialog": {
+        "createTitle": "Create Task",
+        "editTitle": "Edit Task",
+        "description": "Schedule an automated AI task",
+        "taskName": "Task Name",
+        "taskNamePlaceholder": "e.g., Morning briefing",
+        "message": "Message / Prompt",
+        "messagePlaceholder": "What should the AI do? e.g., Give me a summary of today's news and weather",
+        "schedule": "Schedule",
+        "cronPlaceholder": "Cron expression (e.g., 0 9 * * *)",
+        "usePresets": "Use presets",
+        "useCustomCron": "Custom",
+        "deliveryTitle": "Delivery",
+        "deliveryModeNone": "In MClaw",
+        "deliveryModeAnnounce": "External",
+        "deliveryChannel": "Channel",
+        "deliveryAccount": "Account",
+        "selectDeliveryAccount": "Select account",
+        "selectChannel": "Select channel",
+        "deliveryTarget": "Target",
+        "selectDeliveryTarget": "Select target",
+        "loadingTargets": "Loading...",
+        "enableImmediately": "Enable immediately",
+        "saveChanges": "Save Changes",
+        "usingTemplate": "Using template: {{template}}"
+    },
+    "presets": {
+        "everyMinute": "Minutely",
+        "every5Min": "5 min",
+        "every15Min": "15 min",
+        "everyHour": "Hourly",
+        "daily9am": "Daily 9am",
+        "daily6pm": "Daily 6pm",
+        "weeklyMon": "Weekly Mon",
+        "monthly1st": "Monthly 1st"
+    },
+    "categories": {
+        "all": "All",
+        "productivity": "Productivity",
+        "study": "Study",
+        "life": "Life",
+        "entertainment": "Game"
+    },
+    "templates": {
+        "news": {
+            "title": "News Digest",
+            "desc": "Stop scrolling news manually. Get a daily summary of the most important stories."
+        },
+        "travel": {
+            "title": "Weekend Trip Planner",
+            "desc": "Don't know where to go this weekend? Let me plan it for you."
+        },
+        "studyPlan": {
+            "title": "Study Plan",
+            "desc": "Exam coming up? Let me help you create a study plan."
+        },
+        "explain": {
+            "title": "Deep Explanation",
+            "desc": "Stuck on something? Let me break it down and find the breakthrough."
+        },
+        "invoice": {
+            "title": "Invoice Filing",
+            "desc": "End of month chaos with receipts? Let me organize them for you."
+        },
+        "docs": {
+            "title": "Doc Summarizer",
+            "desc": "Bookmark graveyard? Send me links and I'll extract the useful parts."
+        },
+        "schedule": {
+            "title": "Task Reminder",
+            "desc": "Too many tasks to track? I'll manage your schedule and remind you."
+        },
+        "framework": {
+            "title": "Knowledge Map",
+            "desc": "Reading gets overwhelming? I'll map out the knowledge structure for you."
+        },
+        "doubt": {
+            "title": "Study Tracker",
+            "desc": "Words keep slipping? I'll track your progress and nudge you daily."
+        }
+    },
+    "templateGrid": {
+        "title": "Quick Create",
+        "existingTasks": "Existing Tasks ({{count}})",
+        "moreTemplates": "More Templates"
+    },
+    "toast": {
+        "created": "Task created",
+        "updated": "Task updated",
+        "enabled": "Task enabled",
+        "paused": "Task paused",
+        "deleted": "Task deleted",
+        "triggered": "Task triggered successfully",
+        "failedTrigger": "Failed to trigger task: {{error}}",
+        "failedUpdate": "Failed to update task",
+        "failedDelete": "Failed to delete task",
+        "nameRequired": "Please enter a task name",
+        "messageRequired": "Please enter a message",
+        "channelRequired": "Please select a channel",
+        "deliveryTargetRequired": "Please enter a delivery target",
+        "scheduleRequired": "Please select a schedule"
+    },
+    "schedule": {
+        "everySeconds": "Every {{count}}s",
+        "everyMinutes": "Every {{count}} min",
+        "everyHours": "Every {{count}}h",
+        "everyDays": "Every {{count}}d",
+        "onceAt": "Once at {{time}}",
+        "weeklyAt": "Weekly {{day}} {{time}}",
+        "monthlyAtDay": "Monthly day {{day}} {{time}}",
+        "dailyAt": "Daily at {{time}}",
+        "unknown": "Unknown"
+    }
+}
