@@ -650,7 +650,7 @@ export function Sidebar() {
                   return (
                     <div key={item.id} className="agent-group">
                       {/* Agent 行（可点击展开） */}
-                      <button
+                      <div
                         className={cn(
                           'w-full flex items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-all duration-150 relative overflow-hidden',
                           isExpanded
@@ -710,7 +710,7 @@ export function Sidebar() {
                             {agentSessions.length}
                           </span>
                         ) : null}
-                      </button>
+                      </div>
 
                       {/* 展开的会话列表 */}
                       {isExpanded && (

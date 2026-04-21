@@ -1,135 +1,90 @@
 /**
- * ChatMessageItem - 渲染单条聊天消息
- * 移植自 VS Code Chat
+ * ChatMessageItem - 单条聊天消息（Content Parts 驱动版）
+ * 对齐 VS Code Chat chatListRenderer.ts
+ * 数据流：RawMessage → normalizeContentBlocks() → parseNormalizedBlocks() → renderParts()
  */
 import { useMemo } from 'react';
 import { User, Bot, Loader2 } from 'lucide-react';
-import { MarkdownRenderer } from './MarkdownRenderer';
-import { ToolCall } from './ToolCall';
+import { renderParts } from './contentParts/PartRegistry';
+import { parseMessageToParts, parseContentToParts } from '../services/contentPartParser';
+import type { RawMessage } from '@/stores/chat/types';
 
-// 消息类型
+// ============ Props ============
 export interface ChatMessageProps {
   message: {
     id?: string;
     role: 'user' | 'assistant' | 'system';
-    content: string | Array<{
-      type: string;
-      text?: string;
-      name?: string;
-      tool_calls?: Array<{
-        id: string;
-        function: { name: string; arguments: string };
-      }>;
-    }>;
+    content: string | unknown[];
     timestamp?: number;
-    tool_calls?: Array<{
-      id: string;
-      function: { name: string; arguments: string };
-    }>;
     tool_call_id?: string;
   };
   isStreaming?: boolean;
+  showThinking?: boolean;
 }
 
-// 格式化时间戳
+// ============ 工具函数 ============
 function formatTime(timestamp?: number): string {
   if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
-// 渲染文本内容
-function renderTextContent(content: string): React.ReactNode {
-  if (!content) return null;
-  
-  // 检查是否包含代码块
-  if (content.includes('```')) {
-    return <MarkdownRenderer content={content} />;
+// ============ 用户消息渲染 ============
+function renderUserContent(content: string | unknown[]): React.ReactNode {
+  if (typeof content === 'string') {
+    return (
+      <div className="vscode-chat-markdown-text">
+        {content.split('\n').map((line, i) => (
+          <p key={i}>{line || '\u00A0'}</p>
+        ))}
+      </div>
+    );
   }
-  
-  // 简单文本处理
-  return (
-    <div className="vscode-chat-text">
-      {content.split('\n').map((line, i) => {
-        // 处理行内代码
-        if (line.includes('`')) {
-          const parts = line.split(/(`[^`]+`)/g);
-          return (
-            <p key={i}>
-              {parts.map((part, j) => {
-                if (part.startsWith('`') && part.endsWith('`')) {
-                  return <code key={j} className="vscode-inline-code">{part.slice(1, -1)}</code>;
-                }
-                return part;
-              })}
-            </p>
-          );
-        }
-        return <p key={i}>{line || '\u00A0'}</p>;
-      })}
-    </div>
-  );
+  const parts = parseContentToParts(content as unknown[]);
+  if (!parts.length) return null;
+  return renderParts(parts);
 }
 
-// 渲染工具调用
-function renderToolCalls(message: ChatMessageProps['message']): React.ReactNode {
-  const toolCalls = message.tool_calls || [];
-  if (!toolCalls.length) return null;
-  
-  return (
-    <div className="vscode-chat-tool-calls">
-      {toolCalls.map((toolCall) => (
-        <ToolCall
-          key={toolCall.id}
-          toolCall={toolCall}
-        />
-      ))}
-    </div>
-  );
+// ============ 助手消息渲染 ============
+function renderAssistantContent(
+  message: ChatMessageProps['message'],
+  isStreaming: boolean,
+): React.ReactNode {
+  const { content } = message;
+
+  const rawMessage: RawMessage = {
+    role: message.role,
+    content: content as RawMessage['content'],
+    timestamp: message.timestamp,
+    id: message.id,
+    toolCallId: message.tool_call_id,
+  };
+
+  const parts = parseMessageToParts(rawMessage, { isStreaming });
+
+  if (!parts.length && typeof content === 'string' && content) {
+    return renderParts(parseContentToParts([{ type: 'markdown', content }] as unknown[], { isStreaming }));
+  }
+
+  return parts.length > 0 ? renderParts(parts) : null;
 }
 
-// ChatMessageItem 组件
-export function ChatMessageItem({ 
-  message, 
+// ============ 组件 ============
+export function ChatMessageItem({
+  message,
   isStreaming = false,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
-  
-  // 解析内容
+
   const renderedContent = useMemo(() => {
-    if (!message.content) return null;
-    
-    // 如果是数组格式 (带有 tool_calls 等)
-    if (Array.isArray(message.content)) {
-      return message.content.map((block, idx) => {
-        if (block.type === 'text' && block.text) {
-          return (
-            <div key={idx} className="vscode-chat-content-block">
-              {renderTextContent(block.text)}
-            </div>
-          );
-        }
-        if (block.type === 'tool_use' && block.name) {
-          return (
-            <div key={idx} className="vscode-chat-tool-use">
-              <span className="vscode-chat-tool-name">{block.name}</span>
-            </div>
-          );
-        }
-        return null;
-      });
-    }
-    
-    // 如果是字符串
-    return renderTextContent(message.content as string);
-  }, [message.content]);
-  
-  // 流式输出时的光标
+    if (isUser) return renderUserContent(message.content);
+    return renderAssistantContent(message, isStreaming);
+  }, [message.content, isUser, isStreaming]);
+
   const streamingCursor = isStreaming ? (
     <span className="vscode-chat-streaming-cursor">▊</span>
   ) : null;
-  
+
   return (
     <div className={`vscode-chat-message ${message.role} ${isStreaming ? 'streaming' : ''}`}>
       {/* 头像 */}
@@ -142,7 +97,7 @@ export function ChatMessageItem({
           <span className="vscode-chat-system-icon">S</span>
         )}
       </div>
-      
+
       {/* 消息内容 */}
       <div className="vscode-chat-message-content">
         {/* 元信息 */}
@@ -151,9 +106,7 @@ export function ChatMessageItem({
             {isUser ? 'You' : isAssistant ? 'Assistant' : 'System'}
           </span>
           {message.timestamp && (
-            <span className="vscode-chat-timestamp">
-              {formatTime(message.timestamp)}
-            </span>
+            <span className="vscode-chat-timestamp">{formatTime(message.timestamp)}</span>
           )}
           {isStreaming && (
             <span className="vscode-chat-streaming-indicator">
@@ -162,15 +115,13 @@ export function ChatMessageItem({
             </span>
           )}
         </div>
-        
+
         {/* 主要内容 */}
         <div className="vscode-chat-message-body">
           {renderedContent}
-          {renderToolCalls(message)}
           {streamingCursor}
         </div>
-        
-        {/* 工具调用 ID */}
+
         {message.tool_call_id && (
           <div className="vscode-chat-tool-call-id">
             <span className="vscode-chat-label">tool_call_id:</span>

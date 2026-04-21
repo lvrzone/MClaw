@@ -1076,6 +1076,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   showThinking: true,
   thinkingLevel: null,
   lastThinking: null,
+  checkpoints: [],
+  currentCheckpointId: null,
+  toolConfirm: null,
 
   // ── Load sessions via sessions.list ──
 
@@ -2201,4 +2204,59 @@ export const useChatStore = create<ChatState>((set, get) => ({
       },
     }));
   },
+
+  // ── Checkpoint ──
+
+  createCheckpoint: (label?: string) => {
+    const id = `cp-${Date.now()}`;
+    const newCheckpoint = {
+      id,
+      timestamp: Date.now(),
+      label: label || `检查点 ${get().checkpoints.length + 1}`,
+    };
+    set((s) => ({
+      checkpoints: [...s.checkpoints, newCheckpoint],
+      currentCheckpointId: id,
+    }));
+  },
+
+  restoreCheckpoint: (id: string) => {
+    set({ currentCheckpointId: id });
+    // 可以在这里添加实际恢复逻辑
+    console.log(`[ChatStore] Restoring to checkpoint: ${id}`);
+  },
+
+  // 切换 Agent
+  switchAgent: (agentId: string) => {
+    const currentKey = get().currentSessionKey;
+    // 如果当前会话不是该 agent 的，创建新会话
+    const currentAgentFromKey = getAgentIdFromSessionKey(currentKey);
+    if (currentAgentFromKey !== agentId) {
+      console.log(`[ChatStore] Switching agent from ${currentAgentFromKey} to ${agentId}`);
+      // 创建新会话会由 UI 层处理
+      set({ currentAgentId: agentId });
+    }
+  },
+
+  requestToolConfirm: (toolCallId: string, toolName: string, description: string, args?: unknown) => {
+    set({
+      toolConfirm: {
+        toolCallId,
+        toolName,
+        description,
+        args,
+      },
+    });
+    console.log(`[ChatStore] Tool confirmation requested: ${toolName}`, { toolCallId, args });
+  },
+
+  resolveToolConfirm: (approved: boolean) => {
+    const confirm = get().toolConfirm;
+    if (confirm) {
+      console.log(`[ChatStore] Tool confirmation resolved: ${confirm.toolName} - ${approved ? 'approved' : 'denied'}`);
+    }
+    set({ toolConfirm: null });
+    // TODO: 通知后端继续或取消工具执行
+  },
 }));
+

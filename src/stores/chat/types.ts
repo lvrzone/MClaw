@@ -108,6 +108,14 @@ export interface ToolStatus {
   input?: unknown; // 工具调用的输入参数
 }
 
+/** 需要用户确认的工具调用 */
+export interface ToolConfirmation {
+  toolCallId: string;
+  toolName: string;
+  description: string;
+  args?: unknown;
+}
+
 export interface ChatState {
   // Messages
   messages: RawMessage[];
@@ -146,6 +154,18 @@ export interface ChatState {
   /** 保存上一次思考内容，用于在输入框上方显示（持久化到下一次会话） */
   lastThinking: string | null;
 
+  // Checkpoints
+  checkpoints: Array<{ id: string; timestamp: number; label: string }>;
+  currentCheckpointId: string | null;
+
+  // Tool Confirmation
+  toolConfirm: ToolConfirmation | null;
+  requestToolConfirm: (toolCallId: string, toolName: string, description: string, args?: unknown) => void;
+  resolveToolConfirm: (approved: boolean) => void;
+
+  // Agent
+  switchAgent: (agentId: string) => void;
+
   // Actions
   loadSessions: () => Promise<void>;
   switchSession: (key: string) => void;
@@ -176,6 +196,10 @@ export interface ChatState {
   clearScrollTarget: () => void;
   /** Clear unread count for a specific session */
   clearUnreadCount: (key: string) => void;
+  /** Restore a checkpoint */
+  restoreCheckpoint: (id: string) => void;
+  /** Create a new checkpoint */
+  createCheckpoint: (label?: string) => void;
 }
 
 export const DEFAULT_CANONICAL_PREFIX = 'agent:main';

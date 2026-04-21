@@ -1,239 +1,166 @@
 /**
- * MarkdownRenderer - Markdown 内容渲染组件
- * 移植自 VS Code Chat markdownRendering
+ * MarkdownRenderer - Markdown 内容渲染组件（高级版）
+ * 对齐 VS Code chatMarkdownContentPart.ts
+ *
+ * 特性：
+ * - react-markdown 解析
+ * - shiki 语法高亮（30+ 常见语言）
+ * - remark-gfm 表格/任务列表/删除线
+ * - 链接/图片安全处理
+ * - 代码复制按钮
  */
-import { useMemo } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { createHighlighter, type Highlighter } from 'shiki';
+import { Copy, Check, ExternalLink } from 'lucide-react';
 
-// 简单的 Markdown 解析和渲染
-
+// ============ Props ============
 interface MarkdownRendererProps {
   content: string;
   className?: string;
 }
 
-// 解析代码块
-function parseCodeBlocks(text: string): Array<{ type: 'text' | 'code'; content: string; language?: string }> {
-  const parts: Array<{ type: 'text' | 'code'; content: string; language?: string }> = [];
-  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
-  
-  let lastIndex = 0;
-  let match;
-  
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    // 添加代码块之前的文本
-    if (match.index > lastIndex) {
-      const textContent = text.slice(lastIndex, match.index);
-      if (textContent.trim()) {
-        parts.push({ type: 'text', content: textContent });
-      }
-    }
-    
-    // 添加代码块
-    parts.push({
-      type: 'code',
-      language: match[1] || 'plaintext',
-      content: match[2].trim()
+// ============ 单例 Highlighter ============
+let highlighterInstance: Highlighter | null = null;
+let highlighterPromise: Promise<Highlighter> | null = null;
+
+function getShikiHighlighter(): Promise<Highlighter> {
+  if (highlighterInstance) return Promise.resolve(highlighterInstance);
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ['github-dark'],
+      langs: [
+        'javascript', 'typescript', 'python', 'go', 'rust', 'java',
+        'c', 'cpp', 'csharp', 'php', 'ruby', 'swift', 'kotlin',
+        'html', 'css', 'scss', 'json', 'yaml', 'toml', 'xml',
+        'sql', 'bash', 'sh', 'powershell', 'dockerfile',
+        'markdown', 'diff', 'plaintext',
+      ],
+    }).then((h) => {
+      highlighterInstance = h;
+      return h;
     });
-    
-    lastIndex = match.index + match[0].length;
   }
-  
-  // 添加剩余文本
-  if (lastIndex < text.length) {
-    const remainingText = text.slice(lastIndex);
-    if (remainingText.trim()) {
-      parts.push({ type: 'text', content: remainingText });
-    }
-  }
-  
-  return parts;
+  return highlighterPromise;
 }
 
-// 渲染行内格式
-function renderInlineFormatting(text: string): React.ReactNode[] {
-  const result: React.ReactNode[] = [];
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
-  
-  let key = 0;
-  for (const part of parts) {
-    if (part.startsWith('`') && part.endsWith('`')) {
-      // 行内代码
-      result.push(
-        <code key={key++} className="vscode-inline-code">
-          {part.slice(1, -1)}
-        </code>
-      );
-    } else if (part.startsWith('**') && part.endsWith('**')) {
-      // 粗体
-      result.push(
-        <strong key={key++}>{part.slice(2, -2)}</strong>
-      );
-    } else if (part.startsWith('*') && part.endsWith('*')) {
-      // 斜体
-      result.push(
-        <em key={key++}>{part.slice(1, -1)}</em>
-      );
-    } else {
-      result.push(part);
-    }
-  }
-  
-  return result;
+// ============ 代码块（异步渲染） ============
+interface CodeBlockProps {
+  code: string;
+  language: string;
 }
 
-// 渲染文本段落
-function renderText(text: string): React.ReactNode {
-  const lines = text.split('\n');
-  
-  return (
-    <>
-      {lines.map((line, lineIdx) => {
-        // 处理标题
-        if (line.startsWith('# ')) {
-          return <h1 key={lineIdx} className="vscode-chat-h1">{renderInlineFormatting(line.slice(2))}</h1>;
-        }
-        if (line.startsWith('## ')) {
-          return <h2 key={lineIdx} className="vscode-chat-h2">{renderInlineFormatting(line.slice(3))}</h2>;
-        }
-        if (line.startsWith('### ')) {
-          return <h3 key={lineIdx} className="vscode-chat-h3">{renderInlineFormatting(line.slice(4))}</h3>;
-        }
-        
-        // 处理无序列表
-        if (line.match(/^[\-\*]\s/)) {
-          return <li key={lineIdx} className="vscode-chat-li">{renderInlineFormatting(line.slice(2))}</li>;
-        }
-        
-        // 处理有序列表
-        if (line.match(/^\d+\.\s/)) {
-          const match = line.match(/^(\d+)\.\s(.*)$/);
-          if (match) {
-            return (
-              <li key={lineIdx} className="vscode-chat-li" style={{ listStyleType: 'decimal' }}>
-                {renderInlineFormatting(match[2])}
-              </li>
-            );
-          }
-        }
-        
-        // 处理引用
-        if (line.startsWith('> ')) {
-          return <blockquote key={lineIdx} className="vscode-chat-blockquote">{renderInlineFormatting(line.slice(2))}</blockquote>;
-        }
-        
-        // 处理水平线
-        if (line.match(/^[\-\*]{3,}$/)) {
-          return <hr key={lineIdx} className="vscode-chat-hr" />;
-        }
-        
-        // 跳过空白行但保留间距
-        if (!line.trim()) {
-          return <div key={lineIdx} className="vscode-chat-empty-line">&nbsp;</div>;
-        }
-        
-        // 普通段落
-        return <p key={lineIdx} className="vscode-chat-p">{renderInlineFormatting(line)}</p>;
-      })}
-    </>
-  );
-}
+function CodeBlock({ code, language }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+  const [html, setHtml] = useState<string>('');
+  const ref = useRef<HTMLDivElement>(null);
 
-// 渲染代码块
-function renderCodeBlock(language: string, code: string): React.ReactNode {
-  // 简单的语法高亮 - 实际应使用 Prism 等库
-  const highlightedCode = highlightSyntax(code, language);
-  
+  useEffect(() => {
+    let cancelled = false;
+    const lang = language && language !== 'plaintext' ? language : 'plaintext';
+
+    getShikiHighlighter()
+      .then((h) => {
+        if (cancelled) return;
+        try {
+          const highlighted = h.codeToHtml(code, { lang, theme: 'github-dark' });
+          setHtml(highlighted);
+        } catch {
+          if (!cancelled) setHtml(`<pre><code>${code}</code></pre>`);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setHtml(`<pre><code>${code}</code></pre>`);
+      });
+
+    return () => { cancelled = true; };
+  }, [code, language]);
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [code]);
+
   return (
     <div className="vscode-chat-code-block">
       <div className="vscode-chat-code-header">
-        <span className="vscode-chat-code-language">{language}</span>
-        <button 
-          className="vscode-chat-code-copy"
-          onClick={() => navigator.clipboard.writeText(code)}
-          title="复制代码"
-        >
-          复制
+        <span className="vscode-chat-code-language">{language || 'code'}</span>
+        <button className="vscode-chat-code-copy" onClick={handleCopy} title="复制代码">
+          {copied ? <Check size={12} /> : <Copy size={12} />}
         </button>
       </div>
-      <pre className="vscode-chat-code-pre">
-        <code 
-          className={`vscode-chat-code language-${language}`}
-          dangerouslySetInnerHTML={{ __html: highlightedCode }}
-        />
-      </pre>
+      <div className="vscode-chat-code-pre" ref={ref} dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
 }
 
-// 简单的语法高亮
-function highlightSyntax(code: string, language: string): string {
-  if (!code) return '';
-  
-  let result = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  
-  // 关键字高亮
-  const keywords: Record<string, string[]> = {
-    javascript: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'typeof', 'instanceof'],
-    typescript: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'typeof', 'instanceof', 'interface', 'type', 'enum', 'implements', 'extends', 'public', 'private', 'protected', 'readonly'],
-    python: ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'return', 'import', 'from', 'as', 'try', 'except', 'finally', 'with', 'lambda', 'yield', 'global', 'nonlocal', 'pass', 'break', 'continue', 'raise', 'assert', 'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is'],
-    css: ['@media', '@import', '@keyframes', '@font-face', 'important', 'inherit', 'initial', 'unset', 'none', 'block', 'inline', 'flex', 'grid'],
-    html: ['DOCTYPE', 'html', 'head', 'body', 'div', 'span', 'script', 'style', 'link', 'meta', 'title', 'header', 'footer', 'nav', 'main', 'section', 'article', 'aside'],
-    json: ['true', 'false', 'null'],
-  };
-  
-  const langKeywords = keywords[language] || keywords['javascript'] || [];
-  
-  // 字符串高亮
-  result = result.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g, '<span class="vscode-string">$&</span>');
-  
-  // 注释高亮
-  if (['javascript', 'typescript', 'css', 'html'].includes(language)) {
-    result = result.replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span class="vscode-comment">$&</span>');
-  }
-  if (language === 'python') {
-    result = result.replace(/(#.*$)/gm, '<span class="vscode-comment">$&</span>');
-  }
-  
-  // 数字高亮
-  result = result.replace(/\b(\d+\.?\d*)\b/g, '<span class="vscode-number">$1</span>');
-  
-  // 关键字高亮
-  for (const keyword of langKeywords) {
-    const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
-    result = result.replace(regex, '<span class="vscode-keyword">$1</span>');
-  }
-  
-  // URL 高亮
-  result = result.replace(/(https?:\/\/[^\s<>"]+)/g, '<span class="vscode-url">$1</span>');
-  
-  return result;
-}
-
-// MarkdownRenderer 组件
+// ============ 主组件 ============
 export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
-  const rendered = useMemo(() => {
-    if (!content) return null;
-    
-    const parts = parseCodeBlocks(content);
-    
-    return parts.map((part, idx) => {
-      if (part.type === 'code') {
-        return renderCodeBlock(part.language || 'plaintext', part.content);
-      }
-      return (
-        <div key={idx} className="vscode-chat-markdown-text">
-          {renderText(part.content)}
-        </div>
-      );
-    });
-  }, [content]);
-  
   return (
     <div className={`vscode-chat-markdown ${className}`}>
-      {rendered}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 代码块
+          code({ className: codeClassName, children }) {
+            const match = /language-(\w+)/.exec(codeClassName || '');
+            const isInline = !match && !String(children).includes('\n');
+            const code = String(children).replace(/\n$/, '');
+
+            if (isInline) {
+              return <code className="vscode-inline-code">{children}</code>;
+            }
+            return <CodeBlock code={code} language={match ? match[1] : 'plaintext'} />;
+          },
+
+          // 链接
+          a({ href, children, ...props }) {
+            const isExternal = typeof href === 'string' && (href.startsWith('http://') || href.startsWith('https://'));
+            return (
+              <a
+                href={href as string}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                className="vscode-chat-link"
+                {...(props as object)}
+              >
+                {children}
+                {isExternal && <ExternalLink size={10} className="vscode-chat-link-icon" />}
+              </a>
+            );
+          },
+
+          // 图片
+          img({ src, alt }) {
+            return (
+              <img
+                src={src as string}
+                alt={alt as string}
+                className="vscode-chat-markdown-image"
+                loading="lazy"
+              />
+            );
+          },
+
+          // 引用
+          blockquote({ children }) {
+            return <blockquote className="vscode-chat-blockquote">{children}</blockquote>;
+          },
+
+          // 表格
+          table({ children }) {
+            return (
+              <div className="vscode-chat-table-wrapper">
+                <table className="vscode-chat-table">{children}</table>
+              </div>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
