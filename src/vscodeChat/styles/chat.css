@@ -1,0 +1,1316 @@
+/**
+ * VS Code Chat Styles - 完整版
+ * 包含所有功能：思考内容(闪烁动画)、工具调用、代码引用、拖拽上传、确认对话框
+ */
+
+/* ==================== 变量定义 ==================== */
+:root {
+  --vscode-chat-bg: #1e1e1e;
+  --vscode-chat-bg-elevated: #252526;
+  --vscode-chat-bg-hover: #2a2d2e;
+  --vscode-chat-bg-active: #37373d;
+  --vscode-chat-text: #cccccc;
+  --vscode-chat-text-secondary: #858585;
+  --vscode-chat-text-muted: #6a6a6a;
+  --vscode-chat-border: #3c3c3c;
+  --vscode-chat-border-subtle: #2d2d2d;
+  --vscode-chat-accent: #0e639c;
+  --vscode-chat-accent-hover: #1177bb;
+  --vscode-chat-success: #89d185;
+  --vscode-chat-error: #f14c4c;
+  --vscode-chat-warning: #cca700;
+  --vscode-chat-code-bg: #1e1e1e;
+  --vscode-chat-font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif;
+  --vscode-chat-font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Consolas', monospace;
+  --vscode-chat-font-size: 13px;
+  --vscode-chat-font-size-small: 11px;
+  --vscode-chat-padding: 12px;
+  --vscode-chat-radius: 4px;
+  --vscode-chat-radius-large: 6px;
+  /* 思考闪烁动画 */
+  --vscode-chat-thinking-shimmer: #4a4a4a;
+}
+
+/* ==================== 思考内容样式 (增强版) ==================== */
+@keyframes chat-thinking-shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+@keyframes chat-thinking-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.vscode-chat-thinking {
+  position: relative;
+  margin: 8px 0;
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  overflow: hidden;
+}
+
+.vscode-chat-thinking-connector {
+  display: none;
+}
+
+.vscode-chat-thinking.expanded .vscode-chat-thinking-connector {
+  display: block;
+  position: absolute;
+  left: 7px;
+  top: 28px;
+  width: 12px;
+  height: calc(100% - 36px);
+  border-left: 1px solid var(--vscode-chat-border);
+  border-bottom: 1px solid var(--vscode-chat-border);
+  border-bottom-left-radius: 6px;
+  pointer-events: none;
+}
+
+.vscode-chat-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-chat-bg-hover);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.vscode-chat-thinking-header:hover {
+  background: var(--vscode-chat-bg-active);
+}
+
+.vscode-chat-thinking-expand {
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-thinking-icon {
+  font-size: 14px;
+}
+
+.vscode-chat-thinking-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--vscode-chat-text-secondary);
+  font-style: italic;
+}
+
+.vscode-chat-thinking-shimmer-text {
+  background: linear-gradient(90deg,
+    var(--vscode-chat-text-secondary) 0%,
+    var(--vscode-chat-text-secondary) 30%,
+    var(--vscode-chat-thinking-shimmer) 50%,
+    var(--vscode-chat-text-secondary) 70%,
+    var(--vscode-chat-text-secondary) 100%);
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: chat-thinking-shimmer 2s linear infinite;
+}
+
+.vscode-chat-thinking.simmering .vscode-chat-thinking-label {
+  background: linear-gradient(90deg,
+    var(--vscode-chat-text-secondary) 0%,
+    var(--vscode-chat-thinking-shimmer) 50%,
+    var(--vscode-chat-text-secondary) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: chat-thinking-shimmer 1.5s ease-in-out infinite;
+}
+
+.vscode-chat-thinking-spinner {
+  color: var(--vscode-chat-accent);
+  animation: chat-thinking-pulse 1s ease-in-out infinite;
+}
+
+.vscode-chat-thinking-content {
+  padding: 12px;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--vscode-chat-text-secondary);
+  background: var(--vscode-chat-bg);
+  border-top: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-thinking-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-chat-font-family-mono);
+}
+
+/* ==================== 代码引用样式 ==================== */
+.vscode-chat-citations {
+  margin: 12px 0;
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  overflow: hidden;
+}
+
+.vscode-chat-citations-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-chat-bg-hover);
+  cursor: pointer;
+  user-select: none;
+}
+
+.vscode-chat-citations-expand {
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-citations-icon {
+  color: var(--vscode-chat-accent);
+}
+
+.vscode-chat-citations-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-citations-list {
+  padding: 8px;
+  border-top: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-citation-item {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--vscode-chat-radius);
+  margin-bottom: 4px;
+}
+
+.vscode-chat-citation-item:last-child {
+  margin-bottom: 0;
+}
+
+.vscode-chat-citation-item:hover {
+  background: var(--vscode-chat-bg-hover);
+}
+
+.vscode-chat-citation-index {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vscode-chat-accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--vscode-chat-radius);
+}
+
+.vscode-chat-citation-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.vscode-chat-citation-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-chat-text);
+  font-size: 12px;
+}
+
+.vscode-chat-citation-path {
+  font-family: var(--vscode-chat-font-family-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vscode-chat-citation-range {
+  color: var(--vscode-chat-text-muted);
+  font-size: 11px;
+}
+
+.vscode-chat-citation-snippet {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--vscode-chat-code-bg);
+  border-radius: var(--vscode-chat-radius);
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 11px;
+  color: var(--vscode-chat-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==================== 工具调用样式 (完整状态机) ==================== */
+.vscode-chat-tool-call {
+  margin: 8px 0;
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.vscode-chat-tool-call.running {
+  border-color: var(--vscode-chat-accent);
+}
+
+.vscode-chat-tool-call.completed {
+  border-color: var(--vscode-chat-success);
+}
+
+.vscode-chat-tool-call.error {
+  border-color: var(--vscode-chat-error);
+}
+
+.vscode-chat-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-chat-bg-hover);
+  cursor: pointer;
+  user-select: none;
+}
+
+.vscode-chat-tool-header:hover {
+  background: var(--vscode-chat-bg-active);
+}
+
+.vscode-chat-tool-expand {
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-tool-icon {
+  font-size: 14px;
+}
+
+.vscode-chat-tool-name {
+  flex: 1;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-tool-status {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--vscode-chat-bg-active);
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-tool-call.running .vscode-chat-tool-status {
+  background: var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-tool-call.completed .vscode-chat-tool-status {
+  background: var(--vscode-chat-success);
+  color: #1e1e1e;
+}
+
+.vscode-chat-tool-call.error .vscode-chat-tool-status {
+  background: var(--vscode-chat-error);
+  color: white;
+}
+
+.vscode-chat-tool-status-icon {
+  display: flex;
+  align-items: center;
+}
+
+.vscode-chat-tool-status-icon.pending { color: var(--vscode-chat-text-muted); }
+.vscode-chat-tool-status-icon.waiting { color: var(--vscode-chat-warning); }
+.vscode-chat-tool-status-icon.running { color: var(--vscode-chat-accent); }
+.vscode-chat-tool-status-icon.completed { color: var(--vscode-chat-success); }
+.vscode-chat-tool-status-icon.error { color: var(--vscode-chat-error); }
+.vscode-chat-tool-status-icon.cancelled { color: var(--vscode-chat-text-muted); }
+
+/* 进度条 */
+.vscode-chat-tool-progress-bar {
+  height: 3px;
+  background: var(--vscode-chat-border-subtle);
+  overflow: hidden;
+}
+
+.vscode-chat-tool-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--vscode-chat-accent), var(--vscode-chat-accent-hover));
+  transition: width 0.3s ease;
+}
+
+/* 工具确认请求 */
+.vscode-chat-tool-confirmation {
+  padding: 12px;
+  background: var(--vscode-chat-bg-elevated);
+  border-top: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-tool-confirm-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--vscode-chat-warning);
+}
+
+.vscode-chat-tool-confirm-message {
+  font-size: 13px;
+  color: var(--vscode-chat-text);
+  margin-bottom: 12px;
+}
+
+.vscode-chat-tool-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.vscode-chat-tool-confirm-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--vscode-chat-radius);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vscode-chat-tool-confirm-btn.cancel {
+  background: transparent;
+  border: 1px solid var(--vscode-chat-border);
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-tool-confirm-btn.cancel:hover {
+  background: var(--vscode-chat-bg-hover);
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-tool-confirm-btn.confirm {
+  background: var(--vscode-chat-accent);
+  border: 1px solid var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-tool-confirm-btn.confirm:hover {
+  background: var(--vscode-chat-accent-hover);
+}
+
+.vscode-chat-tool-content {
+  padding: 12px;
+  border-top: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-tool-section {
+  margin-bottom: 12px;
+}
+
+.vscode-chat-tool-section:last-child {
+  margin-bottom: 0;
+}
+
+.vscode-chat-tool-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-tool-section-header.error {
+  color: var(--vscode-chat-error);
+}
+
+.vscode-chat-tool-duration {
+  font-weight: normal;
+  text-transform: none;
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-tool-copy-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--vscode-chat-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.vscode-chat-tool-copy-btn:hover {
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-tool-args {
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  padding: 8px;
+  overflow-x: auto;
+}
+
+.vscode-chat-tool-args-pre {
+  margin: 0;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.vscode-chat-tool-result,
+.vscode-chat-tool-error {
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  padding: 8px;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vscode-chat-tool-result {
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-tool-error {
+  color: var(--vscode-chat-error);
+  border-color: var(--vscode-chat-error);
+}
+
+.vscode-chat-tool-details-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-chat-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vscode-chat-tool-details-toggle:hover {
+  color: var(--vscode-chat-text);
+}
+
+/* ==================== 拖拽上传样式 ==================== */
+.vscode-chat-drag-drop-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vscode-chat-drag-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vscode-chat-drag-drop-content {
+  text-align: center;
+  padding: 40px;
+  border: 3px dashed var(--vscode-chat-accent);
+  border-radius: var(--vscode-chat-radius-large);
+  background: var(--vscode-chat-bg-elevated);
+}
+
+.vscode-chat-drag-drop-icon {
+  color: var(--vscode-chat-accent);
+  margin-bottom: 16px;
+  animation: bounce 0.5s ease infinite alternate;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.vscode-chat-drag-drop-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--vscode-chat-text);
+  margin-bottom: 12px;
+}
+
+.vscode-chat-drag-drop-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.vscode-chat-drag-drop-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--vscode-chat-bg);
+  border-radius: var(--vscode-chat-radius);
+  color: var(--vscode-chat-text);
+  font-size: 13px;
+}
+
+.vscode-chat-drag-drop-size {
+  color: var(--vscode-chat-text-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+/* ==================== 确认对话框样式 ==================== */
+.vscode-chat-confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+.vscode-chat-confirmation-dialog {
+  background: var(--vscode-chat-bg-elevated);
+  border: 1px solid var(--vscode-chat-border);
+  border-radius: var(--vscode-chat-radius-large);
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.vscode-chat-confirmation-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-confirmation-icon {
+  color: var(--vscode-chat-warning);
+}
+
+.vscode-chat-confirmation-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-confirmation-body {
+  padding: 20px;
+  font-size: 14px;
+  color: var(--vscode-chat-text);
+  line-height: 1.6;
+}
+
+.vscode-chat-confirmation-data {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--vscode-chat-bg);
+  border-radius: var(--vscode-chat-radius);
+  overflow-x: auto;
+}
+
+.vscode-chat-confirmation-data pre {
+  margin: 0;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 12px;
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-confirmation-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-confirmation-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--vscode-chat-radius);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vscode-chat-confirmation-btn.cancel {
+  background: transparent;
+  border: 1px solid var(--vscode-chat-border);
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-confirmation-btn.cancel:hover {
+  background: var(--vscode-chat-bg-hover);
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-confirmation-btn.confirm {
+  background: var(--vscode-chat-accent);
+  border: 1px solid var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-confirmation-btn.confirm:hover {
+  background: var(--vscode-chat-accent-hover);
+}
+
+/* ==================== 附件列表样式 ==================== */
+.vscode-chat-attachments {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-attachments-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vscode-chat-attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--vscode-chat-bg-hover);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  font-size: 12px;
+}
+
+.vscode-chat-attachment-icon {
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-attachment-name {
+  color: var(--vscode-chat-text);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vscode-chat-attachment-size {
+  color: var(--vscode-chat-text-muted);
+  font-size: 10px;
+}
+
+.vscode-chat-attachment-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-chat-text-muted);
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.vscode-chat-attachment-remove:hover {
+  background: var(--vscode-chat-bg-active);
+  color: var(--vscode-chat-error);
+}
+
+/* ==================== 主容器样式 ==================== */
+.vscode-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--vscode-chat-bg);
+  color: var(--vscode-chat-text);
+  font-family: var(--vscode-chat-font-family);
+  font-size: var(--vscode-chat-font-size);
+  line-height: 1.5;
+}
+
+.vscode-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--vscode-chat-padding);
+  background: var(--vscode-chat-bg-elevated);
+  border-bottom: 1px solid var(--vscode-chat-border);
+}
+
+.vscode-chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.vscode-chat-header-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--vscode-chat-radius);
+  color: var(--vscode-chat-text-secondary);
+  cursor: pointer;
+}
+
+.vscode-chat-header-button:hover {
+  background: var(--vscode-chat-bg-hover);
+  color: var(--vscode-chat-text);
+}
+
+/* 消息列表 */
+.vscode-chat-response-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--vscode-chat-padding);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vscode-chat-response-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.vscode-chat-response-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vscode-chat-response-list::-webkit-scrollbar-thumb {
+  background: var(--vscode-chat-border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.vscode-chat-response-list::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-chat-text-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* 空状态 */
+.vscode-chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px;
+  text-align: center;
+}
+
+.vscode-chat-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.vscode-chat-empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-empty-subtitle {
+  color: var(--vscode-chat-text-secondary);
+  margin-bottom: 16px;
+}
+
+.vscode-chat-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-chat-text-muted);
+  font-size: 12px;
+}
+
+.vscode-chat-empty-subtitle code {
+  background: var(--vscode-chat-bg-hover);
+  padding: 2px 6px;
+  border-radius: var(--vscode-chat-radius);
+  font-family: var(--vscode-chat-font-family-mono);
+}
+
+/* 消息 */
+.vscode-chat-message {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vscode-chat-message.user {
+  flex-direction: row-reverse;
+}
+
+.vscode-chat-message.streaming .vscode-chat-message-body {
+  opacity: 0.9;
+}
+
+.vscode-chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--vscode-chat-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.vscode-chat-message.user .vscode-chat-avatar {
+  background: var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-message.assistant .vscode-chat-avatar {
+  background: var(--vscode-chat-bg-hover);
+  border: 1px solid var(--vscode-chat-border);
+}
+
+.vscode-chat-message-content {
+  flex: 1;
+  min-width: 0;
+  max-width: 85%;
+}
+
+.vscode-chat-message.user .vscode-chat-message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.vscode-chat-message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--vscode-chat-font-size-small);
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-message.user .vscode-chat-message-meta {
+  flex-direction: row-reverse;
+}
+
+.vscode-chat-sender-name {
+  font-weight: 500;
+}
+
+.vscode-chat-timestamp {
+  opacity: 0.7;
+}
+
+.vscode-chat-streaming-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--vscode-chat-accent);
+}
+
+.vscode-chat-message-body {
+  padding: 10px 14px;
+  border-radius: var(--vscode-chat-radius-large);
+  background: var(--vscode-chat-bg-elevated);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.vscode-chat-message.user .vscode-chat-message-body {
+  background: var(--vscode-chat-accent);
+  border-color: var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-message-body > * + * {
+  margin-top: 8px;
+}
+
+.vscode-chat-message-body > *:first-child {
+  margin-top: 0;
+}
+
+/* Markdown */
+.vscode-chat-markdown {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.vscode-chat-markdown .vscode-chat-h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 12px 0 8px;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-markdown .vscode-chat-h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 10px 0 6px;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-markdown .vscode-chat-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-markdown .vscode-chat-p {
+  margin: 6px 0;
+}
+
+.vscode-chat-markdown .vscode-chat-li {
+  margin: 4px 0 4px 20px;
+  list-style-type: disc;
+}
+
+.vscode-chat-markdown .vscode-chat-blockquote {
+  margin: 8px 0;
+  padding: 8px 16px;
+  border-left: 3px solid var(--vscode-chat-accent);
+  background: var(--vscode-chat-bg);
+  color: var(--vscode-chat-text-secondary);
+}
+
+.vscode-chat-markdown .vscode-chat-hr {
+  border: none;
+  border-top: 1px solid var(--vscode-chat-border);
+  margin: 12px 0;
+}
+
+.vscode-chat-markdown .vscode-chat-empty-line {
+  height: 8px;
+}
+
+.vscode-chat-inline-code {
+  background: var(--vscode-chat-code-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 0.9em;
+}
+
+.vscode-chat-message.user .vscode-chat-inline-code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.vscode-chat-link {
+  color: #4ec9b0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vscode-chat-link:hover {
+  text-decoration: underline;
+}
+
+/* 代码块 */
+.vscode-chat-code-block {
+  margin: 12px 0;
+  background: var(--vscode-chat-code-bg);
+  border: 1px solid var(--vscode-chat-border-subtle);
+  border-radius: var(--vscode-chat-radius);
+  overflow: hidden;
+}
+
+.vscode-chat-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--vscode-chat-bg-hover);
+  border-bottom: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-code-language {
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 11px;
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-code-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-chat-text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.vscode-chat-code-copy:hover {
+  background: var(--vscode-chat-bg-active);
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-code-pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vscode-chat-code-pre code {
+  background: transparent;
+}
+
+/* 流式 */
+.vscode-chat-streaming {
+  position: relative;
+}
+
+.vscode-chat-streaming-cursor {
+  display: inline-block;
+  animation: blink 1s infinite;
+  color: var(--vscode-chat-accent);
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 输入框 */
+.vscode-chat-input-container {
+  padding: var(--vscode-chat-padding);
+  background: var(--vscode-chat-bg-elevated);
+  border-top: 1px solid var(--vscode-chat-border);
+}
+
+.vscode-chat-input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--vscode-chat-bg);
+  border: 1px solid var(--vscode-chat-border);
+  border-radius: var(--vscode-chat-radius-large);
+  padding: 8px 12px;
+  transition: border-color 0.15s ease;
+}
+
+.vscode-chat-input-wrapper:focus-within {
+  border-color: var(--vscode-chat-accent);
+}
+
+.vscode-chat-input-wrapper.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.vscode-chat-input-action {
+  background: transparent;
+  border: none;
+  color: var(--vscode-chat-text-secondary);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vscode-chat-radius);
+  transition: all 0.15s ease;
+}
+
+.vscode-chat-input-action:hover:not(:disabled) {
+  background: var(--vscode-chat-bg-hover);
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-input-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vscode-chat-input-action.send {
+  background: var(--vscode-chat-accent);
+  color: white;
+}
+
+.vscode-chat-input-action.send:hover:not(:disabled) {
+  background: var(--vscode-chat-accent-hover);
+}
+
+.vscode-chat-input-action.send.stop {
+  background: var(--vscode-chat-error);
+}
+
+.vscode-chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--vscode-chat-text);
+  font-family: var(--vscode-chat-font-family);
+  font-size: var(--vscode-chat-font-size);
+  line-height: 1.5;
+  resize: none;
+  max-height: 200px;
+  min-height: 24px;
+}
+
+.vscode-chat-input::placeholder {
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-input-footer {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.vscode-chat-hint {
+  font-size: 11px;
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-hint kbd {
+  background: var(--vscode-chat-bg-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--vscode-chat-font-family-mono);
+}
+/* Slash 菜单 */
+.vscode-chat-slash-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 8px;
+  background: var(--vscode-chat-bg-elevated);
+  border: 1px solid var(--vscode-chat-border);
+  border-radius: var(--vscode-chat-radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.vscode-chat-slash-menu-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vscode-chat-text-muted);
+  border-bottom: 1px solid var(--vscode-chat-border-subtle);
+}
+
+.vscode-chat-slash-menu-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vscode-chat-slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.vscode-chat-slash-menu-item:hover {
+  background: var(--vscode-chat-bg-hover);
+}
+
+.vscode-chat-slash-command-icon {
+  display: flex;
+  align-items: center;
+  color: var(--vscode-chat-text-muted);
+}
+
+.vscode-chat-slash-command-name {
+  font-family: var(--vscode-chat-font-family-mono);
+  font-size: 13px;
+  color: var(--vscode-chat-text);
+}
+
+.vscode-chat-slash-command-desc {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--vscode-chat-text-muted);
+}
+
+/* 旋转动画 */
+.vscode-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+  .vscode-chat-message-content {
+    max-width: 95%;
+  }
+  
+  .vscode-chat-confirmation-dialog {
+    min-width: 90%;
+    margin: 16px;
+  }
+}

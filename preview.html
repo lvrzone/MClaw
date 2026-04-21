@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MClaw 布局预览</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 模拟 MClaw 的深色主题 */
+    :root {
+      --background: #0a0a0a;
+      --foreground: #fafafa;
+      --border: #27272a;
+      --primary: #3b82f6;
+      --muted: #27272a;
+      --muted-foreground: #a1a1aa;
+    }
+    .dark {
+      background: var(--background);
+      color: var(--foreground);
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .sidebar {
+      background: #111;
+      border-right: 1px solid #222;
+    }
+    .panel {
+      background: #0f0f0f;
+      border-left: 1px solid #222;
+    }
+    .btn-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .btn-icon.active {
+      background: rgba(59, 130, 246, 0.2);
+      color: #3b82f6;
+    }
+    /* 图标样式 */
+    .icon { width: 16px; height: 16px; }
+  </style>
+</head>
+<body class="dark h-screen overflow-hidden">
+  <div class="flex h-full">
+    <!-- 左侧边栏 -->
+    <div class="sidebar w-16 flex flex-col items-center py-4 gap-2">
+      <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold">M</div>
+      <div class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg></div>
+      <div class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>
+      <div class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg></div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- 顶部工具栏 -->
+      <div class="glass px-3 py-2 flex items-center justify-between">
+        <!-- 左侧：折叠按钮 -->
+        <button class="btn-icon">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+        </button>
+
+        <!-- 中间：ChatToolbar -->
+        <div class="flex items-center gap-1">
+          <!-- 当前 Agent -->
+          <div class="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs">
+            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span>当前对话: Main Agent</span>
+          </div>
+          <!-- 刷新 -->
+          <button class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>
+          <!-- 历史提问 - FileClock -->
+          <button class="btn-icon" title="历史提问">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
+          </button>
+          <!-- 文件历史 - FileClock -->
+          <button class="btn-icon active" title="文件修改历史">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 2v6h6"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 13v-1"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13v-1"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 13v-1"/></svg>
+          </button>
+          <!-- 编码规范 -->
+          <button class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg></button>
+          <!-- 记忆管理 -->
+          <button class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></button>
+          <!-- MCP 外部工具 - Blocks -->
+          <button class="btn-icon"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg></button>
+          <!-- 思考 + 主题 -->
+          <div class="flex items-center gap-0.5 rounded-lg bg-white/5 p-0.5 ml-1">
+            <button class="btn-icon w-7 h-7"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></button>
+            <div class="w-px h-5 bg-white/10"></div>
+            <button class="btn-icon w-7 h-7"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg></button>
+          </div>
+        </div>
+
+        <!-- 右侧：文件面板 + 终端按钮 -->
+        <div class="flex items-center gap-1">
+          <!-- 文件面板按钮 -->
+          <button class="btn-icon" title="文件面板">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          </button>
+          <!-- 终端按钮 - SquareTerminal -->
+          <button class="btn-icon active" title="终端">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3M13 15h4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 聊天内容区 -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- 聊天区域 -->
+        <div class="flex-1 flex flex-col min-w-0">
+          <div class="flex-1 overflow-y-auto p-4">
+            <div class="max-w-3xl mx-auto space-y-4">
+              <!-- 示例消息 -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs">AI</div>
+                <div class="flex-1">
+                  <div class="text-sm text-zinc-400 mb-1">Main Agent</div>
+                  <div class="text-sm leading-relaxed">你好！我是你的 AI 助手，有什么可以帮助你的吗？</div>
+                </div>
+              </div>
+              <div class="flex gap-3 justify-end">
+                <div class="bg-blue-500/10 px-4 py-2 rounded-lg text-sm max-w-[80%]">
+                  帮我写一个 Python 脚本，用来批量重命名文件
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 输入栏 -->
+          <div class="border-t border-white/10 p-4">
+            <div class="max-w-3xl mx-auto">
+              <div class="flex items-center gap-2 bg-white/5 rounded-lg px-4 py-3">
+                <input type="text" placeholder="输入消息..." class="flex-1 bg-transparent outline-none text-sm">
+                <button class="btn-icon text-blue-400"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件面板 -->
+        <div class="panel w-72 flex flex-col">
+          <div class="px-4 py-3 border-b border-white/10 font-medium text-sm">产物</div>
+          <div class="flex-1 overflow-y-auto p-2">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 text-sm">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="truncate flex-1">example.py</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-sm text-zinc-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="truncate flex-1">README.md</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 终端面板 -->
+        <div class="panel w-80 flex flex-col bg-[#0d0d0d]">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+            <span class="text-xs text-zinc-400">终端</span>
+            <button class="btn-icon w-6 h-6"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+          </div>
+          <div class="flex-1 p-3 font-mono text-xs text-zinc-300 overflow-y-auto">
+            <div class="text-green-400">$</div>
+            <div class="text-zinc-500">_</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

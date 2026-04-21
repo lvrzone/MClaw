@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+build/
+release/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# Binary resources (downloaded separately)
+resources/bin/
+resources/dmg-background.png
+
+# Large assets
+pnpm-lock.yaml
+*.icns
+*.ico
+LClaw图标*.png
+猫爪logo.png
+src/assets/logo.svg
+src/assets/猫爪logo.png

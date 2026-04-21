@@ -1,0 +1,137 @@
+{
+    "title": "定期タスク",
+    "subtitle": "定期タスクでAIワークフローを自動化",
+    "newTask": "新規タスク",
+    "refresh": "更新",
+    "gatewayWarning": "ゲートウェイが稼働していません。アクティブなゲートウェイがないと定期タスクを管理できません。",
+    "stats": {
+        "total": "タスク合計",
+        "active": "有効",
+        "paused": "停止中",
+        "failed": "失敗"
+    },
+    "empty": {
+        "title": "定期タスクがありません",
+        "description": "定期タスクを作成してAIワークフローを自動化します。指定した時間にメッセージ送信、クエリ実行、アクション実行が可能です。",
+        "create": "最初のタスクを作成"
+    },
+    "card": {
+        "runNow": "今すぐ実行",
+        "deleteConfirm": "このタスクを削除してもよろしいですか？",
+        "last": "前回",
+        "next": "次回"
+    },
+    "dialog": {
+        "createTitle": "タスク作成",
+        "editTitle": "タスク編集",
+        "description": "自動化AIタスクをスケジュール",
+        "taskName": "タスク名",
+        "taskNamePlaceholder": "例：朝のブリーフィング",
+        "message": "メッセージ / プロンプト",
+        "messagePlaceholder": "AIに何をさせますか？ 例：今日のニュースと天気のまとめを作成",
+        "schedule": "スケジュール",
+        "cronPlaceholder": "Cron式（例：0 9 * * *）",
+        "usePresets": "プリセット",
+        "useCustomCron": "カスタム",
+        "deliveryTitle": "配信設定",
+        "deliveryModeNone": "MClaw内",
+        "deliveryModeAnnounce": "外部送信",
+        "deliveryChannel": "チャンネル",
+        "deliveryAccount": "アカウント",
+        "selectDeliveryAccount": "選択",
+        "selectChannel": "選択",
+        "deliveryTarget": "送信先",
+        "selectDeliveryTarget": "選択",
+        "loadingTargets": "読み込み中...",
+        "enableImmediately": "すぐに有効化",
+        "saveChanges": "変更を保存",
+        "usingTemplate": "テンプレート使用：{{template}}"
+    },
+    "presets": {
+        "everyMinute": "毎分",
+        "every5Min": "5分毎",
+        "every15Min": "15分毎",
+        "everyHour": "毎時",
+        "daily9am": "毎日9時",
+        "daily6pm": "毎日18時",
+        "weeklyMon": "毎週月曜日",
+        "monthly1st": "毎月1日"
+    },
+    "categories": {
+        "all": "すべて",
+        "productivity": "仕事効率化",
+        "study": "学習研究",
+        "life": "生活娯楽",
+        "entertainment": "ゲーム"
+    },
+    "templates": {
+        "news": {
+            "title": "ニュースまとめ",
+            "desc": "ニュースをチェックするのは大変？毎日自動でまとめます。"
+        },
+        "travel": {
+            "title": "週末旅行プラン",
+            "desc": "週末はどこに行くか迷う？計画を立ててあげます。"
+        },
+        "studyPlan": {
+            "title": "学習計画",
+            "desc": "試験勉強が大変？学習計画を立てるのを手伝います。"
+        },
+        "explain": {
+            "title": "深い解説",
+            "desc": "難しいことにぶつかった？かみ砕いて説明します。"
+        },
+        "invoice": {
+            "title": "領収書整理",
+            "desc": "月末の領収書地獄？整理してあげます。"
+        },
+        "docs": {
+            "title": "資料まとめ",
+            "desc": "ブックマーク宝の持ち腐れ？要約を作成します。"
+        },
+        "schedule": {
+            "title": "タスクリマインダー",
+            "desc": "タスク太多で管理できない？スケジュールを教えて差し上げましょう。"
+        },
+        "framework": {
+            "title": "知識マップ",
+            "desc": "本がごちゃごちゃ？知識の構造を整理します。"
+        },
+        "doubt": {
+            "title": "学習トラッカー",
+            "desc": "単語を忘れちゃう？毎日の進捗を追跡します。"
+        }
+    },
+    "templateGrid": {
+        "title": "クイック作成",
+        "existingTasks": "既存タスク ({{count}})",
+        "moreTemplates": "その他のテンプレート"
+    },
+    "toast": {
+        "created": "タスクを作成しました",
+        "updated": "タスクを更新しました",
+        "enabled": "タスクを有効にしました",
+        "paused": "タスクを停止しました",
+        "deleted": "タスクを削除しました",
+        "triggered": "タスクを正常にトリガーしました",
+        "failedTrigger": "タスクの実行に失敗しました: {{error}}",
+        "failedUpdate": "タスクの更新に失敗しました",
+        "failedDelete": "タスクの削除に失敗しました",
+        "nameRequired": "タスク名を入力してください",
+        "messageRequired": "メッセージを入力してください",
+        "channelRequired": "チャンネルを選択してください",
+        "deliveryTargetRequired": "送信先を入力してください",
+        "scheduleRequired": "スケジュールを選択してください"
+    },
+    "schedule": {
+        "everySeconds": "{{count}}秒ごと",
+        "everyMinutes": "{{count}}分ごと",
+        "everyHours": "{{count}}時間ごと",
+        "everyDays": "{{count}}日ごと",
+        "onceAt": "{{time}} に1回実行",
+        "weeklyAt": "毎週 {{day}} {{time}}",
+        "monthlyAtDay": "毎月 {{day}}日 {{time}}",
+        "dailyAt": "毎日 {{time}}",
+        "unknown": "不明"
+    }
+}

@@ -1,0 +1,1030 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== 丝滑动画性能优化系统 ===== */
+
+/* 
+ * 核心原则：动画只使用 transform 和 opacity
+ * 这两个属性不需要重排（reflow），只触发重绘（repaint），
+ * 并且可以利用 GPU 加速，实现 60fps 流畅动画
+ */
+
+/* ===== GPU 加速核心层 ===== */
+.enable-gpu,
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* ===== 丝滑过渡效果 ===== */
+/* 统一使用弹簧缓动曲线，模拟真实物理效果 */
+.smooth-transition {
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-duration: 200ms;
+  will-change: transform, opacity;
+}
+
+/* 弹性按压效果 */
+.press-effect {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.press-effect:active {
+  transform: scale(0.97) translateZ(0);
+}
+
+/* 悬浮弹性效果 */
+.hover-lift {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 200ms ease,
+              border-color 200ms ease;
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: var(--theme-shadow);
+}
+
+/* ===== 丝滑动画关键帧 ===== */
+
+/* 淡入上移（丝滑版） */
+@keyframes smooth-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+/* 淡入缩放（丝滑版） */
+@keyframes smooth-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* 弹性弹入 */
+@keyframes spring-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateZ(0);
+  }
+  60% {
+    transform: scale(1.03) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* 消息气泡（丝滑版） */
+@keyframes msg-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+/* 侧边滑入 */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateZ(0);
+  }
+}
+
+/* 技能列表滑入 */
+@keyframes slide-in-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+/* ===== 丝滑动画类 ===== */
+.smooth-fade-in-up {
+  animation: smooth-fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.smooth-scale-in {
+  animation: smooth-scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.spring-bounce {
+  animation: spring-bounce-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.msg-bubble-animate {
+  animation: msg-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.slide-enter {
+  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 技能列表滑入动画 */
+.animate-slide-in {
+  animation: slide-in-fade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* ===== 滚动性能优化 - 120fps丝滑体验 ===== */
+.perf-scroll,
+.chat-scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
+  /* GPU 加速核心 */
+  transform: translate3d(0, 0, 0);
+  will-change: scroll-position;
+  backface-visibility: hidden;
+  perspective: 1000px;
+  /* 惯性滚动增强 */
+  -webkit-overflow-scrolling: pan-y;
+  overscroll-behavior: contain;
+  /* 减少重绘区域 */
+  contain: strict;
+}
+
+/* 消息列表优化 - 减少重绘 */
+.list-optimized {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+.isolate-layer {
+  isolation: isolate;
+}
+
+/* ===== 进度条丝滑动画 ===== */
+.progress-bar {
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
+  transform: translateZ(0);
+}
+
+/* ===== 按钮反馈优化 ===== */
+.btn-press {
+  transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.btn-press:active {
+  transform: scale(0.97) translateZ(0);
+}
+
+/* ===== 卡片悬浮效果 ===== */
+.card-hover {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms ease;
+  will-change: transform;
+}
+.card-hover:hover {
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: var(--theme-shadow);
+}
+
+/* ===== 骨架屏动画 ===== */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@layer base {
+  :root {
+    /* LClaw Light Theme - QClaw风格白色系 */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 221 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 57%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 67%;
+    --input: 0 0% 96%;
+    --ring: 221 100% 50%;
+    --radius: 0.75rem;
+
+    /* ===== LClaw 文字颜色系统 - 简约黑白灰 ===== */
+    --text-primary: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --text-muted: #8a8a8a;
+    --text-placeholder: #b0b0b0;
+    
+    /* 强调色：蓝色 */
+    --accent-blue: #2563eb;
+    --accent-blue-light: rgba(37, 99, 235, 0.1);
+    --accent-blue-hover: rgba(37, 99, 235, 0.08);
+    
+    /* 状态色 */
+    --success: #22c55e;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --error: #ef4444;
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+
+    /* QClaw 主题色系 */
+    --theme-bg-root: #ffffff;
+    --theme-toolbar-bg: #EBEBEB;
+    --theme-sidebar-bg: #FCFCFC;
+    --theme-session-hover: #f5f5f5;
+    --theme-session-active: #ebebeb;
+    --theme-border: #e8e8e8;
+    --theme-text-primary: #1a1a1a;
+    --theme-text-secondary: #666666;
+    --theme-text-muted: #9b9b9b;
+    --theme-accent-blue: #039fff;
+    --theme-accent-purple: #baafff;
+    --theme-gradient: linear-gradient(68.1deg, #039fff 51.92%, #baafff 89.43%);
+    --theme-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    --theme-shadow-lg: 0 8px 40px rgba(0,0,0,0.10);
+
+    /* iOS 26 磨砂玻璃系统 */
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-bg-hover: rgba(255, 255, 255, 0.85);
+    --glass-bg-strong: rgba(255, 255, 255, 0.88);
+    --glass-blur: blur(40px) saturate(180%);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-border-strong: rgba(255, 255, 255, 0.65);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+  }
+
+  .dark {
+    /* ===== 深空灰夜间模式配色 ===== */
+    /* 背景层次：越深越靠后 */
+    --background: 0 0% 7%;        /* #121214 - 最深背景 */
+    --foreground: 0 0% 97%;       /* #f7f7f7 - 主文字 */
+    
+    --card: 0 0% 11%;             /* #1c1c1e - 卡片/面板 */
+    --card-foreground: 0 0% 97%;
+    
+    --popover: 0 0% 11%;          /* #1c1c1e */
+    --popover-foreground: 0 0% 97%;
+    
+    --primary: 211 100% 50%;      /* #0a84ff - iOS蓝（柔和） */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 14%;         /* #232325 - 次级背景 */
+    --secondary-foreground: 0 0% 90%;
+    
+    --muted: 0 0% 14%;            /* #232325 */
+    --muted-foreground: 0 0% 50%; /* #7f7f80 */
+    
+    --accent: 0 0% 16%;            /* #292929 - 强调/悬停 */
+    --accent-foreground: 0 0% 97%;
+    
+    --destructive: 0 0% 50%;       /* #808080 */
+    --destructive-foreground: 0 0% 97%;
+    
+    --border: 0 0% 18%;           /* #2e2e30 - 边框 */
+    --input: 0 0% 14%;            /* #232325 */
+    --ring: 211 100% 50%;         /* #0a84ff */
+
+    /* ===== 深空灰文字颜色系统 ===== */
+    --text-primary: #f5f5f7;       /* 亮白文字 */
+    --text-secondary: #a1a1a6;     /* 次级文字 */
+    --text-muted: #636366;         /* 弱化文字 */
+    --text-placeholder: #48484a;    /* 占位符 */
+    
+    /* ===== 统一按键色（深空灰） ===== */
+    --btn-bg: #3a3a3c;             /* 按钮默认背景 */
+    --btn-bg-hover: #48484a;       /* 按钮悬停 */
+    --btn-bg-active: #525254;      /* 按钮按下 */
+    --btn-text: #f5f5f7;           /* 按钮文字 */
+    
+    /* 强调色 */
+    --accent-blue: #0a84ff;        /* iOS 柔和蓝 */
+    --accent-blue-light: rgba(10, 132, 255, 0.15);
+    --accent-blue-hover: rgba(10, 132, 255, 0.08);
+    
+    /* 状态色 */
+    --success: #30d158;            /* iOS 绿色 */
+    --success-bg: rgba(48, 209, 88, 0.15);
+    --error: #ff453a;              /* iOS 红色 */
+    --error-bg: rgba(255, 69, 58, 0.15);
+    --warning: #ffd60a;            /* iOS 黄色 */
+    --warning-bg: rgba(255, 214, 10, 0.15);
+
+    /* ===== 深空灰主题色系 ===== */
+    --theme-bg-root: #121214;      /* 最深背景 */
+    --theme-toolbar-bg: #1c1c1e;   /* 顶栏 */
+    --theme-sidebar-bg: #1c1c1e;   /* 侧边栏 */
+    --theme-session-hover: #2c2c2e;/* 会话悬停 */
+    --theme-session-active: #3a3a3c;/* 会话激活 */
+    --theme-border: #38383a;        /* 边框 */
+    --theme-text-primary: #f5f5f7; /* 主文字 */
+    --theme-text-secondary: #a1a1a6;/* 次级文字 */
+    --theme-text-muted: #636366;   /* 弱化文字 */
+    --theme-accent-blue: #0a84ff;  /* 强调蓝 */
+    --theme-accent-purple: #bf5af2;/* iOS 紫 */
+    --theme-gradient: linear-gradient(68.1deg, #0a84ff 51.92%, #bf5af2 89.43%);
+    --theme-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --theme-shadow-lg: 0 8px 40px rgba(0,0,0,0.6);
+
+    /* 磨砂玻璃 - 深空灰版本 */
+    --glass-bg: rgba(28, 28, 30, 0.72);
+    --glass-bg-hover: rgba(44, 44, 46, 0.85);
+    --glass-bg-strong: rgba(44, 44, 46, 0.88);
+    --glass-blur: blur(40px) saturate(180%);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-strong: rgba(255, 255, 255, 0.12);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'PingFang SC', 'Source Han Sans CN', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 统一页面容器样式 */
+  .page-container {
+    @apply h-full overflow-y-auto;
+    background: var(--background);
+  }
+
+  .page-content {
+    @apply max-w-3xl mx-auto px-5 py-6;
+  }
+
+  /* 统一页面标题 */
+  .page-title {
+    @apply text-base font-semibold mb-1;
+    color: var(--text-primary);
+  }
+
+  .page-subtitle {
+    @apply text-[11px];
+    color: var(--text-muted);
+  }
+
+  /* 统一卡片样式 */
+  .card {
+    @apply rounded-xl p-4;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  .card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .card-title {
+    @apply text-[14px] font-semibold;
+    color: var(--text-primary);
+  }
+
+  .card-description {
+    @apply text-[12px];
+    color: var(--text-muted);
+  }
+
+  /* 统一区块间距 */
+  .section {
+    @apply mb-6;
+  }
+
+  .section-title {
+    @apply text-[11px] font-medium mb-3;
+    color: var(--text-muted);
+  }
+}
+
+/* ===== 自定义滚动条 - 深空灰风格 ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #48484a transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #48484a;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #636366;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: #48484a;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: #636366;
+}
+
+/* ===== macOS traffic light spacing ===== */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ===== 主题过渡 ===== */
+.transition-theme {
+  @apply transition-colors duration-200;
+}
+
+/* ===== Focus ring ===== */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+}
+
+/* ===== Prose markdown ===== */
+.prose {
+  line-height: 1.65;
+  color: var(--theme-text-primary);
+}
+.prose p {
+  margin-bottom: 0.75em;
+}
+.prose p:last-child {
+  margin-bottom: 0;
+}
+.prose ul, .prose ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}
+.prose li {
+  margin-bottom: 0.25em;
+}
+.prose pre {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.prose blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: hsl(var(--muted-foreground));
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+.prose th, .prose td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5em;
+  text-align: left;
+}
+.prose th {
+  background: hsl(var(--muted));
+}
+
+/* ===== Typing indicator ===== */
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+/* ===== LClaw 渐变文字 ===== */
+.lclaw-gradient-text {
+  background: var(--theme-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== 磁性悬停效果 ===== */
+.magnetic-hover {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.magnetic-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--theme-shadow);
+}
+
+/* ===== 会话列表项 ===== */
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 16px 0 18px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+.session-item:hover {
+  background: var(--theme-session-hover);
+}
+.session-item.active {
+  background: var(--theme-session-active);
+}
+
+/* ===== Agent头像样式 ===== */
+.agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #039fff, #baafff);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ===== 侧边栏分组标签 ===== */
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--theme-text-muted);
+  padding: 8px 18px 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ===== 侧边栏导航底部图标 ===== */
+.sidebar-nav-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  color: var(--theme-text-muted);
+}
+.sidebar-nav-icon:hover {
+  background: var(--theme-session-hover);
+  color: var(--theme-text-primary);
+}
+.sidebar-nav-icon.active {
+  background: var(--accent-blue-light);
+  color: var(--theme-accent-blue);
+}
+.dark .sidebar-nav-icon:hover {
+  background: #3a3a3c;
+}
+
+/* ===== 技能卡片 ===== */
+.skill-card {
+  background: #fff;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.skill-card:hover {
+  border-color: #c8dff8;
+  box-shadow: 0 4px 16px rgba(3, 159, 255, 0.10);
+  transform: translateY(-1px);
+}
+
+.dark .skill-card {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+}
+.dark .skill-card:hover {
+  background: #3a3a3c;
+  border-color: #48484a;
+}
+
+/* ===== 输入框工具栏标签 ===== */
+.input-toolbar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 13px;
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #ffffff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.input-toolbar-chip:hover {
+  background: #f0f7ff;
+  border-color: #c8dff8;
+  color: var(--theme-accent-blue);
+}
+.dark .input-toolbar-chip {
+  background: #2c2c2e;
+  border-color: #3a3a3c;
+  color: var(--theme-text-secondary);
+}
+.dark .input-toolbar-chip:hover {
+  background: #3a3a3c;
+  border-color: #48484a;
+  color: var(--theme-accent-blue);
+}
+
+/* ===== 顶部标签切换 ===== */
+.main-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--theme-text-secondary);
+  border: none;
+  background: transparent;
+}
+.main-tab:hover {
+  background: rgba(0,0,0,0.04);
+  color: var(--theme-text-primary);
+}
+.main-tab.active {
+  background: rgba(0,0,0,0.06);
+  color: var(--theme-text-primary);
+  font-weight: 600;
+}
+.dark .main-tab:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--theme-text-primary);
+}
+.dark .main-tab.active {
+  background: #3a3a3c;
+  color: var(--theme-text-primary);
+}
+
+/* ===== 思考链 ===== */
+.thinking-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--theme-border);
+}
+.thinking-step:last-child {
+  border-bottom: none;
+}
+
+/* ===== 进入动画 ===== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===== 标签切换渐变下划线 ===== */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ===== iOS 26 磨砂玻璃组件 ===== */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.glass-hover:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-strong);
+}
+
+/* ===== 微型消息气泡 ===== */
+.msg-bubble {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 16px;
+}
+
+.msg-bubble-user {
+  background: linear-gradient(135deg, var(--theme-accent-blue), var(--theme-accent-purple));
+  color: white;
+}
+
+.msg-bubble-assistant {
+  background: #2c2c2e;
+  color: var(--theme-text-primary);
+}
+
+/* ===== 微型执行图 ===== */
+.mini-execution-graph {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 11px;
+}
+
+.mini-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.mini-step-running {
+  background: var(--accent-blue-light);
+}
+
+.mini-step-completed {
+  background: var(--success-bg);
+}
+
+/* ===== 文字颜色系统 ===== */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-accent { color: var(--accent-blue); }
+.text-success { color: var(--success); }
+.text-error { color: var(--error); }
+.text-warning { color: var(--warning); }
+
+/* ===== 状态背景色 ===== */
+.bg-accent { background-color: var(--accent-blue-light); }
+.bg-success { background-color: var(--success-bg); }
+.bg-error { background-color: var(--error-bg); }
+.bg-warning { background-color: var(--warning-bg); }
+
+/* ===== 任务完成划线效果 ===== */
+.task-completed {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* ===== 简约按钮 ===== */
+.btn-minimal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.btn-minimal-default {
+  background: #3a3a3c;
+  color: #f5f5f7;
+}
+.dark .btn-minimal-default {
+  background: #3a3a3c;
+  color: #f5f5f7;
+}
+
+.btn-minimal-default:hover {
+  background: #48484a;
+  color: #f5f5f7;
+}
+
+.btn-minimal-primary {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.btn-minimal-primary:hover {
+  opacity: 0.85;
+}
+
+/* ===== 思考中动画 ===== */
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.thinking-dots span {
+  animation: thinking-pulse 1.4s infinite;
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--theme-text-muted);
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ===== 打字机效果动画 ===== */
+/* 流式思考内容打字机效果 */
+@keyframes typewriter-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.stream-thinking-text {
+  overflow: hidden;
+  animation: none; /* 默认无动画，由 JS 控制 */
+}
+
+.stream-thinking-text.streaming {
+  animation: typewriter-reveal 0.5s ease-out forwards;
+}
+
+/* 光标闪烁效果 */
+.typewriter-cursor {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  background: var(--success, #22c55e);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: typewriter-cursor 0.8s infinite;
+}
+
+/* ===== 未读消息标记动画 ===== */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ===== WorkBuddy 风格 UI 增强动画 ===== */
+
+/* 工具调用脉冲边框 - 运行中蓝色脉冲 */
+@keyframes border-ping {
+  0% { outline-color: rgba(59, 130, 246, 0.3); }
+  50% { outline-color: rgba(59, 130, 246, 0.08); }
+  100% { outline-color: rgba(59, 130, 246, 0.3); }
+}
+
+/* 加载态第1层：文字脉冲 */
+@keyframes cb-text-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.cb-text-loading {
+  animation: cb-text-pulse 1.5s ease-in-out infinite;
+}
+
+/* 加载态第2层：容器呼吸 */
+@keyframes cb-container-breathing {
+  0%, 100% { opacity: 1; transform: scale(1) translateZ(0); }
+  50% { opacity: 0.95; transform: scale(0.998) translateZ(0); }
+}
+.cb-container-loading {
+  animation: cb-container-breathing 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* 加载态第3层：状态点脉冲（带缩放） */
+@keyframes cb-dot-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+.cb-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: hsl(var(--primary));
+  animation: cb-dot-pulse 1.5s ease-in-out infinite;
+}
+
+/* 思考块/工具块 折叠展开过渡 */
+.collapse-transition {
+  overflow: hidden;
+  transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Plan 任务完成划线效果（增强版） */
+.plan-task-completed {
+  text-decoration: line-through;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, text-decoration 0.2s ease;
+}
+
+/* 嵌套竖线连接器 */
+.tree-connector {
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 12px;
+  margin-left: 7px;
+}
+
+/* 消息队列指示条 */
+.message-queue-bar {
+  border-radius: 8px 8px 0 0;
+  border: 1px solid hsl(var(--border) / 0.3);
+  border-bottom: none;
+  background: hsl(var(--muted) / 0.2);
+  padding: 6px 12px;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+/* Hover 工具栏 - 透明→显示 */
+.hover-toolbar {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+}
+.group:hover .hover-toolbar,
+.hover-toolbar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}

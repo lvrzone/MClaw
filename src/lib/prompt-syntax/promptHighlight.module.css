@@ -1,0 +1,58 @@
+/**
+ * Prompt Syntax Highlighting Styles (TextMate-inspired)
+ *
+ * Color palette adapted for dark/light mode compatibility via CSS variables.
+ * Define these variables in your app's theme:
+ *   --prompt-comment-color
+ *   --prompt-variable-color
+ *   --prompt-expression-color
+ *   --prompt-keyword-color
+ *   --prompt-string-color
+ *   --prompt-function-color
+ *   --prompt-text-color
+ */
+
+.wrapper {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Comments: muted gray-green */
+.comment {
+  color: var(--prompt-comment-color, #6a9955);
+  font-style: italic;
+}
+
+/* Variables: ${variable} — blue */
+.variable {
+  color: var(--prompt-variable-color, #9cdcfe);
+}
+
+/* Expressions: {{expression}} — light yellow/gold */
+.expression {
+  color: var(--prompt-expression-color, #dcdcaa);
+}
+
+/* Control keywords: if/else/endif — orange */
+.keyword {
+  color: var(--prompt-keyword-color, #ce9178);
+  font-weight: 600;
+}
+
+/* Quoted strings — green */
+.string {
+  color: var(--prompt-string-color, #6a9955);
+}
+
+/* Built-in functions — light blue */
+.function {
+  color: var(--prompt-function-color, #4ec9b0);
+}
+
+/* Plain text */
+.text {
+  color: var(--prompt-text-color, inherit);
+}
